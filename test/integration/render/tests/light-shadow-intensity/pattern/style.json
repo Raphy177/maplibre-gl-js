@@ -1,0 +1,53 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "description": "A 30 m tall box shadows the western half of the roof of a 5 m box with a fill-extrusion-pattern, which is drawn with its own shaders.",
+      "width": 64,
+      "height": 64
+    }
+  },
+  "light": {
+    "anchor": "map",
+    "position": [1.5, 270, 45],
+    "shadow-intensity": 0.6
+  },
+  "zoom": 16,
+  "sprite": "local://sprites/emerald",
+  "sources": {
+    "geojson": {
+      "type": "geojson",
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {"height": 30},
+            "geometry": {"type": "Polygon", "coordinates": [[[-0.000225, -0.0000674], [-0.0000898, -0.0000674], [-0.0000898, 0.0000674], [-0.000225, 0.0000674], [-0.000225, -0.0000674]]]}
+          },
+          {
+            "type": "Feature",
+            "properties": {"height": 5},
+            "geometry": {"type": "Polygon", "coordinates": [[[0.0000449, -0.0000674], [0.000225, -0.0000674], [0.000225, 0.0000674], [0.0000449, 0.0000674], [0.0000449, -0.0000674]]]}
+          }
+        ]
+      }
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {"background-color": "white"}
+    },
+    {
+      "id": "extrusion",
+      "type": "fill-extrusion",
+      "source": "geojson",
+      "paint": {
+        "fill-extrusion-pattern": "generic_icon",
+        "fill-extrusion-height": ["get", "height"]
+      }
+    }
+  ]
+}
