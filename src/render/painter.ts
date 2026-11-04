@@ -18,6 +18,7 @@ import {Mesh} from './mesh.ts';
 import {FrameRenderContext, type FrameRenderData} from './frame_render_context.ts';
 import {updateFrameUniformBuffer} from '../webgl/frame_uniform_buffer.ts';
 import {releaseProjectionUniformBuffers} from '../webgl/projection_uniform_buffer.ts';
+import {destroyShadowMap, type ShadowMap} from '../webgl/draw/draw_shadow.ts';
 import {coveringTiles} from '../geo/projection/covering_tiles.ts';
 import {isSymbolStyleLayer} from '../style/style_layer/symbol_style_layer.ts';
 import {isCircleStyleLayer} from '../style/style_layer/circle_style_layer.ts';
@@ -114,6 +115,9 @@ export class Painter {
     // of the terrain depth framebuffer.
     // every time the camera-matrix changes the depth framebuffer will be redrawn.
     terrainFacilitator: {depthDirty: boolean; matrix: mat4; renderTime: number};
+    /** Created when the light first casts a shadow, and freed when it stops. */
+    shadowMap: ShadowMap | null = null;
+    shadowsUnsupported: boolean = false;
 
     constructor(gl: WebGL2RenderingContext) {
         this.drawFunctions = webglDrawFunctions;
@@ -307,6 +311,7 @@ export class Painter {
             this.renderLayer(this, tileManagers[layer.source], layer, coords, frameRenderContext);
         }
 
+        frameRenderContext.shadowMap = this.drawFunctions.shadowMap(this, style, coordsDescending, frameRenderContext);
         // Rebind the main framebuffer now that all offscreen layers have been rendered:
         this.context.viewport.set([0, 0, this.width, this.height]);
         this.context.bindFramebuffer.set(null);
@@ -344,6 +349,7 @@ export class Painter {
 
         for (frameRenderContext.currentLayer = 0; frameRenderContext.currentLayer < layerIds.length; frameRenderContext.currentLayer++) {
             const layer = style._layers[layerIds[frameRenderContext.currentLayer]];
+            if (frameRenderContext.shadowMap && frameRenderContext.currentLayer === frameRenderContext.opaquePassCutoff) this.drawFunctions.groundShadow(this, frameRenderContext);
             if (layer.isHidden(transform.zoom)) continue;
             const tileManager = tileManagers[layer.source];
 
@@ -593,6 +599,7 @@ export class Painter {
         }
 
         this.destroyRTTResources();
+        destroyShadowMap(this);
 
         this.layerCompositeFbo?.destroy();
         this.layerCompositeFbo = null;

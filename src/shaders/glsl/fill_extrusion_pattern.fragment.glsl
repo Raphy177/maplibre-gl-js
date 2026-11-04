@@ -38,6 +38,7 @@ void main() {
     vec4 mixedColor = mix(color1, color2, u_fade);
 
     fragColor = mixedColor * v_lighting;
+    fragColor.rgb *= 1.0 - shadow_darkening();
 
     #ifdef OVERDRAW_INSPECTOR
         fragColor = vec4(1.0);

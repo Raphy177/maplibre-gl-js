@@ -1,5 +1,6 @@
 ## main
 ### ✨ Features and improvements
+- Support the `light.shadow-intensity` style spec property, which lets fill-extrusions cast shadows onto each other and the ground
 - _...Add new stuff here..._
 
 ### 🐞 Bug fixes

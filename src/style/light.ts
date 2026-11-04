@@ -35,6 +35,7 @@ export class Light extends Evented {
             position: this.properties.get('position'),
             color: this.properties.get('color'),
             intensity: this.properties.get('intensity'),
+            'shadow-intensity': this.properties.get('shadow-intensity'),
         };
     }
 

@@ -99,6 +99,7 @@ void main() {
 
     v_lighting = vec4(0.0, 0.0, 0.0, 1.0);
     float directional = clamp(dot(normal / 16383.0, u_lightpos), 0.0, 1.0);
+    set_shadow_pos(vec4(posInTile, elevation, 1.0), normal.xy / 16383.0, directional);
     directional = mix((1.0 - u_lightintensity), max((0.5 + u_lightintensity), 1.0), directional);
 
     if (normal.z == 0.0) {

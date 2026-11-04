@@ -72,6 +72,7 @@ void main() {
     // Calculate cos(theta), where theta is the angle between surface normal and diffuse light ray
     vec3 normalForLighting = normal / 16384.0;
     float directional = clamp(dot(normalForLighting, u_lightpos), 0.0, 1.0);
+    set_shadow_pos(vec4(posInTile, elevation, 1.0), normalForLighting.xy, directional);
 
     #ifdef GLOBE
         mat3 rotMatrix = globeGetRotationMatrix(spherePos);

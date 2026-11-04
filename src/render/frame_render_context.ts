@@ -23,6 +23,7 @@ import type {LightPropsPossiblyEvaluated} from '../style/light_properties.g.ts';
 import type {SkyPropsPossiblyEvaluated} from '../style/sky_properties.g.ts';
 import type {Projection, TileMeshUsage} from '../geo/projection/projection.ts';
 import type {CrossTileID, VariableOffset} from '../symbol/placement.ts';
+import type {ShadowMap} from '../webgl/draw/draw_shadow.ts';
 
 export type RenderPass = 'offscreen' | 'opaque' | 'translucent';
 
@@ -96,6 +97,8 @@ export class FrameRenderContext {
     opaquePassCutoff: number = Infinity;
     depthRangeFor3D: DepthRangeType = [0, 1];
     isRenderingToTexture: boolean = false;
+    /** The shadow map fill-extrusions cast into this frame, null when nothing casts a shadow. */
+    shadowMap: ShadowMap | null = null;
     readonly transform: IReadonlyTransform;
     readonly terrain: Terrain | null;
     readonly data: FrameRenderData;
