@@ -39,6 +39,7 @@ export class Light extends Evented {
             intensity,
             'ambient-color': this.properties.get('ambient-color'),
             'ambient-intensity': Number.isFinite(ambientIntensity) ? ambientIntensity : 1 - intensity,
+            'shadow-intensity': this.properties.get('shadow-intensity'),
         };
     }
 

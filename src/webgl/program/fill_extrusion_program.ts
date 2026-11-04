@@ -17,6 +17,9 @@ import type {Tile} from '../../tile/tile.ts';
 import type {LightPropsPossiblyEvaluated} from '../../style/light_properties.g.ts';
 import type {ProjectedCamera} from '../../camera/projected_camera.ts';
 
+/** The texture unit the shadow map is bound to while shadow receivers draw. */
+export const SHADOW_MAP_TEXTURE_UNIT = 4;
+
 export type FillExtrusionUniformsType = {
     'u_lightpos': Uniform3f;
     'u_lightpos_globe': Uniform3f;
@@ -25,6 +28,7 @@ export type FillExtrusionUniformsType = {
     'u_lightambient': Uniform3f;
     'u_vertical_gradient': Uniform1f;
     'u_fill_translate': Uniform2f;
+    'u_shadow_map': Uniform1i;
 };
 
 export type FillExtrusionPatternUniformsType = {
@@ -36,6 +40,7 @@ export type FillExtrusionPatternUniformsType = {
     'u_height_factor': Uniform1f;
     'u_vertical_gradient': Uniform1f;
     'u_fill_translate': Uniform2f;
+    'u_shadow_map': Uniform1i;
     // pattern uniforms:
     'u_texsize': Uniform2f;
     'u_image': Uniform1i;
@@ -53,7 +58,12 @@ const fillExtrusionUniforms = (context: Context, locations: UniformLocations): F
     'u_lightambient': new Uniform3f(context, locations.u_lightambient),
     'u_vertical_gradient': new Uniform1f(context, locations.u_vertical_gradient),
     'u_fill_translate': new Uniform2f(context, locations.u_fill_translate),
+    'u_shadow_map': new Uniform1i(context, locations.u_shadow_map),
 });
+
+export type ShadowGroundUniformsType = {'u_shadow_map': Uniform1i};
+
+const shadowGroundUniforms = (context: Context, locations: UniformLocations): ShadowGroundUniformsType => ({'u_shadow_map': new Uniform1i(context, locations.u_shadow_map)});
 
 const fillExtrusionPatternUniforms = (context: Context, locations: UniformLocations): FillExtrusionPatternUniformsType => ({
     'u_lightpos': new Uniform3f(context, locations.u_lightpos),
@@ -64,6 +74,7 @@ const fillExtrusionPatternUniforms = (context: Context, locations: UniformLocati
     'u_vertical_gradient': new Uniform1f(context, locations.u_vertical_gradient),
     'u_height_factor': new Uniform1f(context, locations.u_height_factor),
     'u_fill_translate': new Uniform2f(context, locations.u_fill_translate),
+    'u_shadow_map': new Uniform1i(context, locations.u_shadow_map),
     // pattern uniforms
     'u_image': new Uniform1i(context, locations.u_image),
     'u_texsize': new Uniform2f(context, locations.u_texsize),
@@ -103,6 +114,7 @@ const fillExtrusionUniformValues = (
         ],
         'u_vertical_gradient': +shouldUseVerticalGradient,
         'u_fill_translate': translate,
+        'u_shadow_map': SHADOW_MAP_TEXTURE_UNIT,
     };
 };
 
@@ -121,6 +133,7 @@ const fillExtrusionPatternUniformValues = (
 export {
     fillExtrusionUniforms,
     fillExtrusionPatternUniforms,
+    shadowGroundUniforms,
     fillExtrusionUniformValues,
     fillExtrusionPatternUniformValues
 };

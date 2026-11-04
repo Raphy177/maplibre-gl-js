@@ -37,3 +37,21 @@ layout(std140) uniform FrameUBO {
     highp vec2 u_pixel_extrude_scale;
     highp float u_pitch;
 };
+
+#ifdef SHADOWS
+uniform highp sampler2DShadow u_shadow_map;
+in highp vec3 v_shadow_pos;
+in lowp float v_shadow_weight;
+// Four bilinear depth comparisons half a texel apart filter 3x3 texels (GPU Gems, chapter 11), fading out at the border.
+lowp float shadow_darkening() {
+    highp vec3 p = v_shadow_pos;
+    highp vec2 offset = vec2(0.5 / SHADOW_MAP_SIZE);
+    lowp float lit = 0.25 * (
+        texture(u_shadow_map, vec3(p.xy - offset, p.z)) + texture(u_shadow_map, vec3(p.xy + offset, p.z)) +
+        texture(u_shadow_map, vec3(p.x - offset.x, p.y + offset.y, p.z)) + texture(u_shadow_map, vec3(p.x + offset.x, p.y - offset.y, p.z)));
+    highp vec2 border = abs(p.xy - 0.5);
+    return v_shadow_weight * (1.0 - lit) * (1.0 - smoothstep(0.45, 0.5, max(border.x, border.y)));
+}
+#else
+#define shadow_darkening() 0.0
+#endif
