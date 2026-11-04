@@ -1,0 +1,52 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "description": "A light from the west, 45 degrees above the horizon, lets a 30 m tall box cast a shadow 30 m long. It darkens the ground and the western half of the roof of a 5 m box to the east, 15 m away.",
+      "width": 64,
+      "height": 64
+    }
+  },
+  "light": {
+    "anchor": "map",
+    "position": [1.5, 270, 45],
+    "shadow-intensity": 0.6
+  },
+  "zoom": 16,
+  "sources": {
+    "geojson": {
+      "type": "geojson",
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {"height": 30},
+            "geometry": {"type": "Polygon", "coordinates": [[[-0.000225, -0.0000674], [-0.0000898, -0.0000674], [-0.0000898, 0.0000674], [-0.000225, 0.0000674], [-0.000225, -0.0000674]]]}
+          },
+          {
+            "type": "Feature",
+            "properties": {"height": 5},
+            "geometry": {"type": "Polygon", "coordinates": [[[0.0000449, -0.0000674], [0.000225, -0.0000674], [0.000225, 0.0000674], [0.0000449, 0.0000674], [0.0000449, -0.0000674]]]}
+          }
+        ]
+      }
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {"background-color": "white"}
+    },
+    {
+      "id": "extrusion",
+      "type": "fill-extrusion",
+      "source": "geojson",
+      "paint": {
+        "fill-extrusion-color": "#cccccc",
+        "fill-extrusion-height": ["get", "height"]
+      }
+    }
+  ]
+}

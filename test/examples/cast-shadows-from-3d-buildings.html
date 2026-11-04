@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>Cast shadows from 3D buildings</title>
+  <meta property="og:description" content="Let the light cast shadows from extruded buildings onto each other and onto the ground." />
+  <meta property="og:category" content="3D Models & Buildings" />
+  <meta property="og:order" content="2" />
+  <meta property="og:created" content="2026-11-04" />
+  <meta charset='utf-8'>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel='stylesheet' href='../../dist/maplibre-gl.css' />
+
+  <style>
+      body { margin: 0; padding: 0; }
+      html, body, #map { height: 100%; }
+      #controls {
+          position: absolute;
+          top: 10px;
+          left: 10px;
+          padding: 10px;
+          background: rgba(255, 255, 255, 0.9);
+          border-radius: 4px;
+          font: 12px/20px 'Helvetica Neue', Arial, sans-serif;
+      }
+      #controls label { display: block; }
+      #controls input { width: 200px; vertical-align: middle; }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<div id="controls">
+  <label>Shadow intensity <input id="shadow-intensity" type="range" min="0" max="1" step="0.05" value="0.6"></label>
+  <label>Azimuth <input id="azimuth" type="range" min="0" max="360" step="1" value="210"></label>
+  <label>Polar angle <input id="polar" type="range" min="0" max="85" step="1" value="45"></label>
+</div>
+<script type="module">
+  import * as maplibregl from '../../dist/maplibre-gl-dev.mjs';
+
+  const map = new maplibregl.Map({
+      style: `https://tiles.openfreemap.org/styles/bright`,
+      center: [-74.0066, 40.7135],
+      zoom: 15.5,
+      pitch: 45,
+      bearing: -17.6,
+      container: 'map',
+      canvasContextAttributes: {antialias: true}
+  });
+
+  const controls = ['shadow-intensity', 'azimuth', 'polar'].map(id => document.getElementById(id));
+
+  function updateLight() {
+      const [intensity, azimuth, polar] = controls.map(input => Number(input.value));
+      map.setLight({
+          'anchor': 'map',
+          'position': [1.5, azimuth, polar],
+          'shadow-intensity': intensity
+      });
+  }
+
+  map.on('load', () => {
+      const layers = map.getStyle().layers;
+      const labelLayerId = layers.find(layer => layer.type === 'symbol' && layer.layout['text-field'])?.id;
+
+      map.addSource('openfreemap', {
+          url: `https://tiles.openfreemap.org/planet`,
+          type: 'vector',
+      });
+
+      map.addLayer(
+          {
+              'id': '3d-buildings',
+              'source': 'openfreemap',
+              'source-layer': 'building',
+              'type': 'fill-extrusion',
+              'minzoom': 15,
+              'filter': ['!=', ['get', 'hide_3d'], true],
+              'paint': {
+                  'fill-extrusion-color': 'lightgray',
+                  'fill-extrusion-height': ['get', 'render_height'],
+                  'fill-extrusion-base': ['get', 'render_min_height']
+              }
+          },
+          labelLayerId
+      );
+
+      updateLight();
+      for (const input of controls) input.addEventListener('input', updateLight);
+  });
+</script>
+</body>
+</html>
