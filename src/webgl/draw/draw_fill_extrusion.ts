@@ -14,6 +14,7 @@ import {updatePatternPositionsInProgram} from '../../render/update_pattern_posit
 import {translatePosition} from '../../util/util.ts';
 import {isFillExtrusionStyleLayer, type FillExtrusionStyleLayer} from '../../style/style_layer/fill_extrusion_style_layer.ts';
 import {FOG_DEFINES} from './draw_sky.ts';
+import {SHADOW_DEFINES, setShadowTile} from './draw_shadow.ts';
 import {getCameraMath} from '../../camera/camera_math_factory.ts';
 import {EXTENT} from '../../data/extent.ts';
 
@@ -27,7 +28,18 @@ import type {RendererProjectionData} from '../../geo/projection/projection_data.
 
 /** Shader defines that switch on wall ambient occlusion. */
 const WALL_AMBIENT_OCCLUSION_DEFINES = ['#define WALL_AMBIENT_OCCLUSION'];
-const WALL_AO_AND_FOG_DEFINES = [...WALL_AMBIENT_OCCLUSION_DEFINES, ...FOG_DEFINES];
+
+/** Precomputed shader defines indexed by `(wallAo ? 1 : 0) | (fog ? 2 : 0) | (shadows ? 4 : 0)`. */
+const EXTRUSION_DEFINES: Array<string[] | undefined> = [
+    undefined,
+    WALL_AMBIENT_OCCLUSION_DEFINES,
+    FOG_DEFINES,
+    [...WALL_AMBIENT_OCCLUSION_DEFINES, ...FOG_DEFINES],
+    SHADOW_DEFINES,
+    [...WALL_AMBIENT_OCCLUSION_DEFINES, ...SHADOW_DEFINES],
+    [...FOG_DEFINES, ...SHADOW_DEFINES],
+    [...WALL_AMBIENT_OCCLUSION_DEFINES, ...FOG_DEFINES, ...SHADOW_DEFINES],
+];
 
 /** Shader defines for the ground occlusion composite pass. */
 const GROUND_OCCLUSION_COMPOSITE_DEFINES = ['#define COMPOSITE'];
@@ -291,10 +303,8 @@ function drawExtrusionTiles(
     const projectedCamera = frameRenderContext.projectedCamera;
     const aoWallIntensity = layer.paint.get('fill-extrusion-ambient-occlusion-wall-intensity');
     const aoWallRadius = layer.paint.get('fill-extrusion-ambient-occlusion-wall-radius');
-    const hasWallAo = aoWallIntensity > 0 && aoWallRadius > 0;
-    const defines = hasWallAo && frameRenderContext.fogActive ? WALL_AO_AND_FOG_DEFINES :
-        hasWallAo ? WALL_AMBIENT_OCCLUSION_DEFINES :
-            frameRenderContext.fogActive ? FOG_DEFINES : undefined;
+    const wallAo = aoWallIntensity > 0 && aoWallRadius > 0;
+    const defines = EXTRUSION_DEFINES[(wallAo ? 1 : 0) | (frameRenderContext.fogActive ? 2 : 0) | (frameRenderContext.shadowMap ? 4 : 0)];
 
     for (const coord of coords) {
         const tile = tileManager.getTile(coord);
@@ -304,6 +314,7 @@ function drawExtrusionTiles(
         const terrainData = frameRenderContext.getTerrainDataForTile(coord);
         const programConfiguration = bucket.programConfigurations.get(layer.id);
         const program = frameRenderContext.useProgram(image ? 'fillExtrusionPattern' : 'fillExtrusion', programConfiguration, false, defines);
+        if (frameRenderContext.shadowMap) setShadowTile(frameRenderContext, coord);
 
         if (image) {
             context.activeTexture.set(gl.TEXTURE0);

@@ -1,4 +1,4 @@
-import {fillExtrusionUniforms, fillExtrusionPatternUniforms, fillExtrusionGroundOcclusionUniforms, type FillExtrusionUniformsType, type FillExtrusionPatternUniformsType, type FillExtrusionGroundOcclusionUniformsType} from './fill_extrusion_program.ts';
+import {fillExtrusionUniforms, fillExtrusionPatternUniforms, fillExtrusionGroundOcclusionUniforms, shadowGroundUniforms, type FillExtrusionUniformsType, type FillExtrusionPatternUniformsType, type FillExtrusionGroundOcclusionUniformsType, type ShadowGroundUniformsType} from './fill_extrusion_program.ts';
 import {fillPatternUniforms, fillOutlineUniforms, fillOutlinePatternUniforms, fillUniforms, type FillUniformsType, type FillPatternUniformsType, type FillOutlineUniformsType, type FillOutlinePatternUniformsType} from './fill_program.ts';
 import {circleUniforms, type CircleUniformsType} from './circle_program.ts';
 import {debugUniforms, type DebugUniformsType} from './debug_program.ts';
@@ -58,6 +58,7 @@ export const programUniforms: {
     atmosphere: (context: Context, locations: UniformLocations) => atmosphereUniformsType;
     sky: (context: Context, locations: UniformLocations) => SkyUniformsType;
     fogGround: (context: Context, locations: UniformLocations) => EmptyUniforms;
+    shadowGround: (context: Context, locations: UniformLocations) => ShadowGroundUniformsType;
 } = {
     fillExtrusion: fillExtrusionUniforms,
     fillExtrusionPattern: fillExtrusionPatternUniforms,
@@ -94,5 +95,6 @@ export const programUniforms: {
     terrainHeight: terrainHeightUniforms,
     atmosphere: atmosphereUniforms,
     sky: skyUniforms,
-    fogGround: emptyUniforms
+    fogGround: emptyUniforms,
+    shadowGround: shadowGroundUniforms
 };

@@ -200,3 +200,21 @@ layout(std140) uniform FogUBO {
     highp vec4 u_fog_ground;
 };
 #endif
+
+#ifdef SHADOWS
+layout(std140) uniform ShadowUBO {
+    highp mat4 u_shadow_matrix;
+    highp float u_shadow_intensity;
+};
+out highp vec3 v_shadow_pos;
+out lowp float v_shadow_weight;
+// Walls, whose normals point into the extrusion in tile coordinates, look up the map two texels out from their surface
+// (normal offset shadows, Holbert, GDC 2011). Surfaces turning away from the light are left to their shading.
+void set_shadow_pos(vec4 pos, vec2 normal, float directional) {
+    pos.xy -= normal * (4.0 / SHADOW_MAP_SIZE) / length(u_shadow_matrix[0].xy);
+    v_shadow_pos = (u_shadow_matrix * pos).xyz * 0.5 + 0.5;
+    v_shadow_weight = u_shadow_intensity * smoothstep(0.0, 0.2, directional);
+}
+#else
+#define set_shadow_pos(pos, normal, directional)
+#endif

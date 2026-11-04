@@ -55,6 +55,7 @@ void main() {
     #endif
 
     fragColor = mixedColor * lighting;
+    fragColor.rgb *= 1.0 - shadow_darkening();
 
     #ifdef FOG
         fragColor = apply_fog(fragColor);

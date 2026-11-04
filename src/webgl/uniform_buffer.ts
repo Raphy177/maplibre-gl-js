@@ -5,6 +5,7 @@ export const UBO_BINDINGS = {
     TerrainUBO: 1,
     FrameUBO: 2,
     FogUBO: 3,
+    ShadowUBO: 4,
 };
 
 export function applyUBOBindings(gl: WebGL2RenderingContext, program: WebGLProgram): void {

@@ -8,6 +8,7 @@ in vec4 v_color;
 
 void main() {
     fragColor = v_color;
+    fragColor.rgb *= 1.0 - shadow_darkening();
 
     #ifdef WALL_AMBIENT_OCCLUSION
         // (1 - s)^1.5 approximates the share of ambient light the ground blocks within the radius.
