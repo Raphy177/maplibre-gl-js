@@ -1,0 +1,66 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "description": "A light from the south-west at 45° from the zenith with full shadow intensity. Left, a box on the ground casts a shadow as long as it is high, as dark relative to the ground as its wall facing away from the light relative to its roof. Right, a part raised to 12 m casts a shadow displaced by its base.",
+      "height": 512,
+      "width": 512
+    }
+  },
+  "light": {
+    "anchor": "map",
+    "position": [1.15, 225, 45],
+    "intensity": 0.5,
+    "shadow-intensity": 1
+  },
+  "sources": {
+    "geojson": {
+      "type": "geojson",
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {"base": 0, "height": 16},
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [[[-0.00016, -0.00006], [-0.00004, -0.00006], [-0.00004, 0.00006], [-0.00016, 0.00006], [-0.00016, -0.00006]]]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": {"base": 12, "height": 20},
+            "geometry": {
+              "type": "Polygon",
+              "coordinates": [[[0.00004, -0.00006], [0.00016, -0.00006], [0.00016, 0.00006], [0.00004, 0.00006], [0.00004, -0.00006]]]
+            }
+          }
+        ]
+      }
+    }
+  },
+  "pitch": 45,
+  "bearing": 0,
+  "zoom": 19,
+  "center": [0, 0],
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#dddddd"
+      }
+    },
+    {
+      "id": "extrusion",
+      "type": "fill-extrusion",
+      "source": "geojson",
+      "paint": {
+        "fill-extrusion-color": "#f2f2f2",
+        "fill-extrusion-base": ["get", "base"],
+        "fill-extrusion-height": ["get", "height"],
+        "fill-extrusion-vertical-gradient": false
+      }
+    }
+  ]
+}

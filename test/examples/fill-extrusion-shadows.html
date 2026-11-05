@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Shadows for fill extrusions</title>
+    <meta property="og:description" content="Let buildings cast shadows onto the ground that follow the light." />
+    <meta property="og:category" content="3D Models & Buildings" />
+    <meta property="og:created" content="2026-11-05" />
+    <meta charset='utf-8'>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel='stylesheet' href='../../dist/maplibre-gl.css' />
+
+    <style>
+        body { margin: 0; padding: 0; font: 13px/1.4 sans-serif; }
+        html, body, #map { height: 100%; }
+        #panel {
+            position: absolute; top: 10px; left: 10px; z-index: 1; width: 280px;
+            padding: 12px 14px; background: #fff; border-radius: 4px; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        }
+        #panel label { display: block; margin-top: 8px; }
+        #panel label:first-child { margin-top: 0; }
+        #panel input[type=range] { width: 100%; }
+        #panel output { float: right; }
+        #panel .row { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-top: 8px; }
+        #panel .row label { margin: 0; }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+<div id="panel">
+    <label>Sun azimuth (°) <output></output>
+        <input type="range" id="azimuth" min="0" max="360" step="1" value="210">
+    </label>
+    <label>Sun altitude above the horizon (°) <output></output>
+        <input type="range" id="altitude" min="0" max="90" step="1" value="55">
+    </label>
+    <label>Light intensity <output></output>
+        <input type="range" id="light-intensity" min="0" max="1" step="0.05" value="0.5">
+    </label>
+    <label>Shadow intensity <output></output>
+        <input type="range" id="shadow-intensity" min="0" max="1" step="0.05" value="0.8">
+    </label>
+    <div class="row">
+        <label for="anchor">Light anchor</label>
+        <select id="anchor">
+            <option value="map" selected>map</option>
+            <option value="viewport">viewport</option>
+        </select>
+    </div>
+</div>
+<script type="module">
+    import * as maplibregl from '../../dist/maplibre-gl-dev.mjs';
+
+    const map = new maplibregl.Map({
+        container: 'map',
+        style: 'https://tiles.openfreemap.org/styles/bright',
+        center: [-74.0066, 40.7135],
+        zoom: 16.5,
+        pitch: 55,
+        bearing: -17.6,
+        canvasContextAttributes: {antialias: true}
+    });
+
+    const $ = id => document.getElementById(id);
+    const lightInputs = ['azimuth', 'altitude', 'light-intensity', 'shadow-intensity'];
+
+    /** Writes the sliders to `light`. Its position is polar, measured from directly above. */
+    function applyLight() {
+        for (const id of lightInputs) {
+            $(id).parentElement.querySelector('output').textContent = $(id).value;
+        }
+        map.setLight({
+            anchor: $('anchor').value,
+            position: [1.15, Number($('azimuth').value), 90 - Number($('altitude').value)],
+            intensity: Number($('light-intensity').value),
+            'shadow-intensity': Number($('shadow-intensity').value)
+        });
+    }
+
+    map.on('load', () => {
+        const layers = map.getStyle().layers;
+        const labelLayerId = layers.find(l => l.type === 'symbol' && l.layout?.['text-field']).id;
+        const buildingSource = layers.find(l => l['source-layer'] === 'building').source;
+
+        for (const layer of layers) {
+            if (layer.type === 'fill-extrusion') map.setLayoutProperty(layer.id, 'visibility', 'none');
+        }
+
+        map.addLayer({
+            id: 'building-extrusion',
+            type: 'fill-extrusion',
+            source: buildingSource,
+            'source-layer': 'building',
+            minzoom: 14,
+            filter: ['!=', ['get', 'hide_3d'], true],
+            paint: {
+                'fill-extrusion-color': [
+                    'interpolate', ['linear'], ['get', 'render_height'],
+                    0, 'lightgray', 200, 'royalblue', 400, 'lightblue'
+                ],
+                'fill-extrusion-height': ['get', 'render_height'],
+                'fill-extrusion-base': ['get', 'render_min_height']
+            }
+        }, labelLayerId);
+        applyLight();
+    });
+
+    for (const id of [...lightInputs, 'anchor']) {
+        $(id).addEventListener('input', applyLight);
+    }
+</script>
+</body>
+</html>
