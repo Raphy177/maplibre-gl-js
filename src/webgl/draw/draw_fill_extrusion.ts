@@ -1,3 +1,4 @@
+import {Color} from '@maplibre/maplibre-gl-style-spec';
 import {DepthMode} from '../depth_mode.ts';
 import {StencilMode} from '../stencil_mode.ts';
 import {ColorMode} from '../color_mode.ts';
@@ -5,15 +6,19 @@ import {CullFaceMode} from '../cull_face_mode.ts';
 import {
     fillExtrusionUniformValues,
     fillExtrusionPatternUniformValues,
+    groundShadowParameters,
+    type FillExtrusionShadowUniformsType,
 } from '../program/fill_extrusion_program.ts';
 import {updatePatternPositionsInProgram} from '../../render/update_pattern_positions_in_program.ts';
 import {translatePosition} from '../../util/util.ts';
+import {getTileUnitsForMeters} from '../../data/bucket/round_polygon_corners.ts';
 
 import type {FrameRenderContext} from '../../render/frame_render_context.ts';
 import type {TileManager} from '../../tile/tile_manager.ts';
 import type {FillExtrusionStyleLayer} from '../../style/style_layer/fill_extrusion_style_layer.ts';
 import type {FillExtrusionBucket} from '../../data/bucket/fill_extrusion_bucket.ts';
 import type {OverscaledTileID} from '../../tile/tile_id.ts';
+import type {UniformValues} from '../uniform_binding.ts';
 
 export function drawFillExtrusion(tileManager: TileManager, layer: FillExtrusionStyleLayer, coords: OverscaledTileID[], frameRenderContext: FrameRenderContext): void {
     const opacity = layer.paint.get('fill-extrusion-opacity');
@@ -22,6 +27,8 @@ export function drawFillExtrusion(tileManager: TileManager, layer: FillExtrusion
     }
 
     if (frameRenderContext.currentPass === 'translucent') {
+        drawGroundShadows(tileManager, layer, coords, frameRenderContext);
+
         const depthMode = new DepthMode(frameRenderContext.context.gl.LEQUAL, DepthMode.ReadWrite, frameRenderContext.depthRangeFor3D);
 
         if (opacity === 1 && !layer.paint.get('fill-extrusion-pattern').constantOr(1 as any)) {
@@ -97,5 +104,46 @@ function drawExtrusionTiles(
             uniformValues, terrainData, projectionData, layer.id, bucket.layoutVertexBuffer, bucket.indexBuffer,
             bucket.segments, layer.paint, frameRenderContext.transform.zoom,
             programConfiguration, frameRenderContext.terrain && bucket.centroidVertexBuffer);
+    }
+}
+
+/**
+ * Multiplies the ground below the layer by the shadow its extrusions cast: the extrusions drawn again, sheared
+ * along the light onto the ground. The stencil darkens each pixel once where shadows overlap. Not drawn on
+ * terrain, where the ground is not flat.
+ */
+function drawGroundShadows(tileManager: TileManager, layer: FillExtrusionStyleLayer, coords: OverscaledTileID[], frameRenderContext: FrameRenderContext): void {
+    const {data, transform, context} = frameRenderContext;
+    if (!data.light || frameRenderContext.terrain || frameRenderContext.isRenderingToTexture || data.showOverdrawInspector) return;
+
+    const shadow = groundShadowParameters(transform, data.light, layer.paint.get('fill-extrusion-opacity'));
+    if (!shadow) return;
+
+    const gl = context.gl;
+    const depthMode = new DepthMode(gl.LEQUAL, DepthMode.ReadOnly, frameRenderContext.depthRangeFor3D);
+    const stencilMode = frameRenderContext.stencilModeFor3D();
+    const multiply = new ColorMode([gl.ZERO, gl.SRC_COLOR], Color.transparent, [true, true, true, true]);
+    const translate = layer.paint.get('fill-extrusion-translate');
+    const translateAnchor = layer.paint.get('fill-extrusion-translate-anchor');
+
+    for (const coord of coords) {
+        const tile = tileManager.getTile(coord);
+        const bucket = tile.getBucket(layer) as FillExtrusionBucket;
+        if (!bucket) continue;
+
+        const programConfiguration = bucket.programConfigurations.get(layer.id);
+        const program = frameRenderContext.useProgram('fillExtrusionShadow', programConfiguration);
+        const tileUnitsPerMeter = getTileUnitsForMeters(1, coord.canonical);
+        const uniformValues: UniformValues<FillExtrusionShadowUniformsType> = {
+            'u_fill_translate': translatePosition(transform, tile, translate, translateAnchor),
+            'u_shadow_offset': [shadow.offset[0] * tileUnitsPerMeter, shadow.offset[1] * tileUnitsPerMeter],
+            'u_shadow_darkness': shadow.darkness,
+        };
+
+        // A separate VAO key, since the extrusions bind the same buffers to another program.
+        program.draw(context, gl.TRIANGLES, depthMode, stencilMode, multiply, CullFaceMode.disabled,
+            uniformValues, null, frameRenderContext.getProjectionDataForTile(coord), `${layer.id}/shadow`,
+            bucket.layoutVertexBuffer, bucket.indexBuffer, bucket.segments,
+            layer.paint, transform.zoom, programConfiguration);
     }
 }

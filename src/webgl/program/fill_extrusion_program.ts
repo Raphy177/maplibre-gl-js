@@ -44,6 +44,18 @@ export type FillExtrusionPatternUniformsType = {
     'u_fade': Uniform1f;
 };
 
+export type FillExtrusionShadowUniformsType = {
+    'u_fill_translate': Uniform2f;
+    'u_shadow_offset': Uniform2f;
+    'u_shadow_darkness': Uniform1f;
+};
+
+/** The longest shadow, as a multiple of the caster's height: `tan(80°)`. */
+const MAX_SHADOW_LENGTH = 5.67;
+
+/** Shadows fade out over this many degrees above the horizon. */
+const SHADOW_HORIZON_FADE = 10;
+
 const fillExtrusionUniforms = (context: Context, locations: UniformLocations): FillExtrusionUniformsType => ({
     'u_lightpos': new Uniform3f(context, locations.u_lightpos),
     'u_lightpos_globe': new Uniform3f(context, locations.u_lightpos_globe),
@@ -72,6 +84,49 @@ const fillExtrusionPatternUniforms = (context: Context, locations: UniformLocati
     'u_fade': new Uniform1f(context, locations.u_fade)
 });
 
+const fillExtrusionShadowUniforms = (context: Context, locations: UniformLocations): FillExtrusionShadowUniformsType => ({
+    'u_fill_translate': new Uniform2f(context, locations.u_fill_translate),
+    'u_shadow_offset': new Uniform2f(context, locations.u_shadow_offset),
+    'u_shadow_darkness': new Uniform1f(context, locations.u_shadow_darkness),
+});
+
+/** Returns the direction towards the light in tile coordinates. A light anchored to the viewport turns with the camera. */
+function lightDirection(transform: IReadonlyTransform, light: Readonly<LightPropsPossiblyEvaluated>): vec3 {
+    const lightPos = sphericalToCartesian(light.position);
+    const lightMat = mat3.create();
+    if (light.anchor === 'viewport') {
+        mat3.fromRotation(lightMat, transform.bearingInRadians);
+    }
+    return vec3.transformMat3(lightPos, lightPos, lightMat);
+}
+
+/**
+ * Returns the shadow a layer casts onto the ground, or null if none.
+ *
+ * `offset` is where the shadow of a point one meter high lies relative to its foot, in meters along the tile
+ * axes: `tan(polar)` long, capped at {@link MAX_SHADOW_LENGTH}. `darkness` is the fraction of brightness the
+ * shadowed ground loses, matching how much the extrusion shader darkens a wall facing away from the light
+ * compared with a roof.
+ * @param opacity - `fill-extrusion-opacity` of the casting layer
+ */
+function groundShadowParameters(
+    transform: IReadonlyTransform,
+    light: Readonly<LightPropsPossiblyEvaluated>,
+    opacity: number
+): {offset: [number, number]; darkness: number} | null {
+    const polar = light.position[2];
+    const fade = Math.min(1, (90 - polar) / SHADOW_HORIZON_FADE);
+    const [x, y, z] = lightDirection(transform, light);
+    const roof = light.intensity * Math.min(1, Math.max(0, z));
+    const lit = 1 - light.intensity + roof;
+    const darkness = lit > 0 && fade > 0 ? light['shadow-intensity'] * opacity * fade * roof / lit : 0;
+    if (darkness === 0) return null;
+
+    const horizontal = Math.hypot(x, y);
+    const scale = horizontal > 0 ? Math.min(MAX_SHADOW_LENGTH, Math.tan(polar * Math.PI / 180)) / horizontal : 0;
+    return {offset: [x * scale, y * scale], darkness};
+}
+
 const fillExtrusionUniformValues = (
     transform: IReadonlyTransform,
     light: Readonly<LightPropsPossiblyEvaluated>,
@@ -79,12 +134,7 @@ const fillExtrusionUniformValues = (
     opacity: number,
     translate: [number, number],
 ): UniformValues<FillExtrusionUniformsType> => {
-    const lightPos = sphericalToCartesian(light.position);
-    const lightMat = mat3.create();
-    if (light.anchor === 'viewport') {
-        mat3.fromRotation(lightMat, transform.bearingInRadians);
-    }
-    vec3.transformMat3(lightPos, lightPos, lightMat);
+    const lightPos = lightDirection(transform, light);
     const transformedLightPos = transform.transformLightDirection(lightPos);
 
     const lightColor = light.color;
@@ -120,6 +170,8 @@ const fillExtrusionPatternUniformValues = (
 export {
     fillExtrusionUniforms,
     fillExtrusionPatternUniforms,
+    fillExtrusionShadowUniforms,
     fillExtrusionUniformValues,
-    fillExtrusionPatternUniformValues
+    fillExtrusionPatternUniformValues,
+    groundShadowParameters
 };

@@ -1,5 +1,6 @@
 ## main
 ### ✨ Features and improvements
+- Let `fill-extrusion` layers cast shadows onto the ground, following `light`, with `light.shadow-intensity` ([#1797](https://github.com/maplibre/maplibre-style-spec/issues/1797))
 - _...Add new stuff here..._
 
 ### 🐞 Bug fixes
