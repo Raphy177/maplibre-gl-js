@@ -349,7 +349,9 @@ export class Painter {
 
         for (frameRenderContext.currentLayer = 0; frameRenderContext.currentLayer < layerIds.length; frameRenderContext.currentLayer++) {
             const layer = style._layers[layerIds[frameRenderContext.currentLayer]];
-            if (frameRenderContext.shadowMap && frameRenderContext.currentLayer === frameRenderContext.opaquePassCutoff) this.drawFunctions.groundShadow(this, frameRenderContext);
+            if (frameRenderContext.shadowMap && frameRenderContext.currentLayer === frameRenderContext.opaquePassCutoff) {
+                this.drawFunctions.groundShadow(this, frameRenderContext);
+            }
             if (layer.isHidden(transform.zoom)) continue;
             const tileManager = tileManagers[layer.source];
 

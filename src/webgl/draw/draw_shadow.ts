@@ -75,7 +75,9 @@ function createShadowMap({context, transform, data}: FrameRenderContext): Shadow
         framebuffer,
         uniformBuffer: new UniformBuffer(context, UBO_BINDINGS.ShadowUBO, layout),
         cameraMatrix: new Float64Array(16),
-        azimuth: 0, polar: 0, anchor: '',
+        azimuth: 0,
+        polar: 0,
+        anchor: '',
         lightMatrix: new Float64Array(16),
         ground: transform.getProjectionData({overscaledTileID: null}),
         groundShadowMatrix: new Float32Array(16),
@@ -187,23 +189,32 @@ function updateLightMatrix(shadowMap: ShadowMap, {transform, data: {light}}: Fra
     shadowMap.azimuth = azimuth;
     shadowMap.polar = polar;
     shadowMap.anchor = light.anchor;
-    const sinPitch = Math.sin(transform.pitchInRadians), bearing = transform.bearingInRadians;
+    const sinPitch = Math.sin(transform.pitchInRadians);
+    const bearing = transform.bearingInRadians;
     const radius = Math.hypot(transform.width, transform.height) / 2 * (1 + sinPitch);
     const ahead = (transform.cameraToCenterDistance + radius / 2) * sinPitch;
     const centerX = transform.cameraPosition[0] + Math.sin(bearing) * ahead;
     const centerY = transform.cameraPosition[1] - Math.cos(bearing) * ahead;
     const theta = azimuth * Math.PI / 180 + (light.anchor === 'viewport' ? bearing : 0);
     const phi = Math.min(polar, MAX_POLAR_ANGLE) * Math.PI / 180;
-    const sinPhi = Math.sin(phi), cosPhi = Math.cos(phi);
-    const lightX = Math.sin(theta), lightY = -Math.cos(theta), metersToPixels = transform.pixelsPerMeter;
+    const sinPhi = Math.sin(phi);
+    const cosPhi = Math.cos(phi);
+    const lightX = Math.sin(theta);
+    const lightY = -Math.cos(theta);
+    const metersToPixels = transform.pixelsPerMeter;
     const distance = radius * sinPhi + MAX_CASTER_HEIGHT * metersToPixels * cosPhi;
-    const far = distance + radius * sinPhi, k = 2 * sinPhi / far, centerAlongLight = lightX * centerX + lightY * centerY;
+    const far = distance + radius * sinPhi;
+    const k = 2 * sinPhi / far;
+    const centerAlongLight = lightX * centerX + lightY * centerY;
     const lightMatrix = mat4.set(shadowMap.lightMatrix,
         lightY / radius, lightX / radius, -k * lightX, 0,
         -lightX / radius, lightY / radius, -k * lightY, 0,
         0, -Math.tan(phi) * metersToPixels / radius, -2 * cosPhi * metersToPixels / far, 0,
         (lightX * centerY - lightY * centerX) / radius, -centerAlongLight / radius, k * centerAlongLight + 2 * distance / far - 1, 1);
-    mat4.set(quad, 2 * radius * lightY, -2 * radius * lightX, 0, 0, 2 * radius * lightX, 2 * radius * lightY, 0, 0, 0, 0, 1, 0,
+    mat4.set(quad,
+        2 * radius * lightY, -2 * radius * lightX, 0, 0,
+        2 * radius * lightX, 2 * radius * lightY, 0, 0,
+        0, 0, 1, 0,
         centerX - radius * (lightX + lightY), centerY + radius * (lightX - lightY), 0, 1);
     mat4.multiply(shadowMap.ground.mainMatrix, transform.modelViewProjectionMatrix, quad);
     mat4.multiply(shadowMap.groundShadowMatrix, lightMatrix, quad);
