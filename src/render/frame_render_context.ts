@@ -61,6 +61,8 @@ export type FrameRenderData = {
     readonly light: Readonly<LightPropsPossiblyEvaluated> | undefined;
     /** The style's sky, evaluated for this frame, undefined until the style has loaded. */
     readonly sky: Readonly<SkyPropsPossiblyEvaluated> | undefined;
+    /** Whether the style sets one of the fog properties on its sky, which a flat map draws fog for. */
+    readonly hasFog?: boolean;
 };
 
 type FrameRenderContextOptions = {
@@ -106,6 +108,8 @@ export class FrameRenderContext {
     groundOcclusionSampled: boolean = false;
     /** Whether the offscreen ground occlusion FBO holds strips to composite. */
     groundOcclusionReady: boolean = false;
+    /** Whether `FogUBO` holds fog for this frame, which the translucent pass blends into its fill extrusions. */
+    fogActive: boolean = false;
     readonly projectedCamera: ProjectedCamera;
     /** The world mapping the camera was projected with. */
     readonly worldCoordinateHelper: WorldCoordinateHelper;

@@ -56,6 +56,10 @@ void main() {
 
     fragColor = mixedColor * lighting;
 
+    #ifdef FOG
+        fragColor = apply_fog(fragColor);
+    #endif
+
     #ifdef OVERDRAW_INSPECTOR
         fragColor = vec4(1.0);
     #endif

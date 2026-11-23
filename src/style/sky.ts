@@ -43,6 +43,13 @@ export class Sky extends Evented {
         return this._transitionable.serialize();
     }
 
+    /** Whether the style sets one of the fog properties, rather than leaving them all at their defaults. */
+    hasFog(): boolean {
+        return this._transitionable.getValue('fog-color') !== undefined ||
+            this._transitionable.getValue('fog-ground-blend') !== undefined ||
+            this._transitionable.getValue('horizon-fog-blend') !== undefined;
+    }
+
     updateTransitions(parameters: TransitionParameters): void {
         this._transitioning = this._transitionable.transitioned(parameters, this._transitioning);
     }

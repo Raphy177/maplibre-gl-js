@@ -57,6 +57,7 @@ export const programUniforms: {
     terrainHeight: (context: Context, locations: UniformLocations) => TerrainHeightUniformsType;
     atmosphere: (context: Context, locations: UniformLocations) => atmosphereUniformsType;
     sky: (context: Context, locations: UniformLocations) => SkyUniformsType;
+    fogGround: (context: Context, locations: UniformLocations) => EmptyUniforms;
 } = {
     fillExtrusion: fillExtrusionUniforms,
     fillExtrusionPattern: fillExtrusionPatternUniforms,
@@ -92,5 +93,6 @@ export const programUniforms: {
     terrainDepth: terrainDepthUniforms,
     terrainHeight: terrainHeightUniforms,
     atmosphere: atmosphereUniforms,
-    sky: skyUniforms
+    sky: skyUniforms,
+    fogGround: emptyUniforms
 };

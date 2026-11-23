@@ -13,6 +13,7 @@ import {
 import {updatePatternPositionsInProgram} from '../../render/update_pattern_positions_in_program.ts';
 import {translatePosition} from '../../util/util.ts';
 import {isFillExtrusionStyleLayer, type FillExtrusionStyleLayer} from '../../style/style_layer/fill_extrusion_style_layer.ts';
+import {FOG_DEFINES} from './draw_sky.ts';
 import {getCameraMath} from '../../camera/camera_math_factory.ts';
 import {EXTENT} from '../../data/extent.ts';
 
@@ -26,6 +27,7 @@ import type {RendererProjectionData} from '../../geo/projection/projection_data.
 
 /** Shader defines that switch on wall ambient occlusion. */
 const WALL_AMBIENT_OCCLUSION_DEFINES = ['#define WALL_AMBIENT_OCCLUSION'];
+const WALL_AO_AND_FOG_DEFINES = [...WALL_AMBIENT_OCCLUSION_DEFINES, ...FOG_DEFINES];
 
 /** Shader defines for the ground occlusion composite pass. */
 const GROUND_OCCLUSION_COMPOSITE_DEFINES = ['#define COMPOSITE'];
@@ -289,7 +291,10 @@ function drawExtrusionTiles(
     const projectedCamera = frameRenderContext.projectedCamera;
     const aoWallIntensity = layer.paint.get('fill-extrusion-ambient-occlusion-wall-intensity');
     const aoWallRadius = layer.paint.get('fill-extrusion-ambient-occlusion-wall-radius');
-    const defines = aoWallIntensity > 0 && aoWallRadius > 0 ? WALL_AMBIENT_OCCLUSION_DEFINES : undefined;
+    const hasWallAo = aoWallIntensity > 0 && aoWallRadius > 0;
+    const defines = hasWallAo && frameRenderContext.fogActive ? WALL_AO_AND_FOG_DEFINES :
+        hasWallAo ? WALL_AMBIENT_OCCLUSION_DEFINES :
+            frameRenderContext.fogActive ? FOG_DEFINES : undefined;
 
     for (const coord of coords) {
         const tile = tileManager.getTile(coord);

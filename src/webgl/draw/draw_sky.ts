@@ -14,6 +14,9 @@ import type {LightPropsPossiblyEvaluated} from '../../style/light_properties.g.t
 import type {Mesh} from '../../render/mesh.ts';
 import type {ProjectedCamera} from '../../camera/projected_camera.ts';
 
+/** The defines of the shaders that blend in the fog of `FogUBO`. */
+export const FOG_DEFINES: string[] = ['#define FOG'];
+
 export function drawSky(mesh: Mesh, frameRenderContext: FrameRenderContext): void {
     const context = frameRenderContext.context;
     const gl = context.gl;
@@ -29,6 +32,14 @@ export function drawSky(mesh: Mesh, frameRenderContext: FrameRenderContext): voi
     program.draw(context, gl.TRIANGLES, depthMode, stencilMode, colorMode,
         CullFaceMode.disabled, skyUniforms, null, undefined, 'sky', mesh.vertexBuffer,
         mesh.indexBuffer, mesh.segments);
+}
+
+/** Blends the fog over the ground of a flat map, which has no mesh of its own to draw it with. */
+export function drawGroundFog(mesh: Mesh, frameRenderContext: FrameRenderContext): void {
+    const context = frameRenderContext.context;
+    const program = frameRenderContext.useProgram('fogGround', null, true, FOG_DEFINES);
+    program.draw(context, context.gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, ColorMode.alphaBlended,
+        CullFaceMode.disabled, null, null, null, 'fogGround', mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
 }
 
 function getSunPos(light: Readonly<LightPropsPossiblyEvaluated>, projectedCamera: ProjectedCamera): vec3 {

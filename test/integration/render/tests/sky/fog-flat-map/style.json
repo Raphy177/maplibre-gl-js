@@ -1,0 +1,34 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "height": 128,
+      "width": 256,
+      "maxPitch": 85
+    }
+  },
+  "center": [
+    35.38,
+    31.55
+  ],
+  "zoom": 15,
+  "pitch": 85,
+  "sources": {},
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#ccaa83"
+      }
+    }
+  ],
+  "sky": {
+    "sky-color": "#199EF3",
+    "horizon-color": "#ffffff",
+    "sky-horizon-blend": 0.5,
+    "fog-color": "#ff00ff",
+    "fog-ground-blend": 0.2,
+    "horizon-fog-blend": 0.7
+  }
+}

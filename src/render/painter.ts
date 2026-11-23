@@ -18,6 +18,7 @@ import {Mesh} from './mesh.ts';
 import {FrameRenderContext, type FrameRenderData} from './frame_render_context.ts';
 import {updateFrameUniformBuffer} from '../webgl/frame_uniform_buffer.ts';
 import {releaseProjectionUniformBuffers} from '../webgl/projection_uniform_buffer.ts';
+import {updateFogUniformBuffer} from '../webgl/fog_uniform_buffer.ts';
 import {coveringTiles} from '../geo/projection/covering_tiles.ts';
 import {isSymbolStyleLayer} from '../style/style_layer/symbol_style_layer.ts';
 import {isCircleStyleLayer} from '../style/style_layer/circle_style_layer.ts';
@@ -346,6 +347,7 @@ export class Painter {
         // Translucent pass ===============================================
         // Draw all other layers bottom-to-top.
         frameRenderContext.currentPass = 'translucent';
+        frameRenderContext.fogActive = updateFogUniformBuffer(this.context, projectedCamera, data, !!frameRenderContext.terrain);
 
         let globeDepthRendered = false;
         let lastFillExtrusionLayer = -1;
@@ -356,10 +358,15 @@ export class Painter {
                 break;
             }
         }
+        let groundFogPending = frameRenderContext.fogActive && !frameRenderContext.terrain;
 
         for (frameRenderContext.currentLayer = 0; frameRenderContext.currentLayer < layerIds.length; frameRenderContext.currentLayer++) {
             const layer = style._layers[layerIds[frameRenderContext.currentLayer]];
             if (layer.isHidden(projectedCamera.zoom)) continue;
+            if (groundFogPending && isFillExtrusionStyleLayer(layer)) {
+                groundFogPending = false;
+                this.drawFunctions.groundFog(this.skyMesh, frameRenderContext);
+            }
             const tileManager = tileManagers[layer.source];
 
             if (this.renderToTexture?.renderLayer(layer, style, frameRenderContext)) continue;
@@ -385,6 +392,8 @@ export class Painter {
                 this.drawFunctions.fillExtrusionGroundOcclusion(this, style, coordsDescending, frameRenderContext);
             }
         }
+
+        if (groundFogPending) this.drawFunctions.groundFog(this.skyMesh, frameRenderContext);
 
         // Render atmosphere, only for Globe projection
         if (data.isRenderingGlobe) {
