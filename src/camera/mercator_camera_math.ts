@@ -88,9 +88,8 @@ export function createMercatorProjectedCamera(metrics: CameraMetrics, worldCoord
     const point = projectToWorldCoordinates(metrics.worldSize, metrics.center, worldCoordinateHelper);
     const x = point.x, y = point.y;
 
-    // Calculate the camera to sea-level distance in pixel in respect of terrain
     const limitedPitchRadians = degreesToRadians(Math.min(metrics.pitch, maxMercatorHorizonAngle));
-    const cameraToSeaLevelDistance = Math.max(metrics.cameraToCenterDistance / 2, metrics.cameraToCenterDistance + metrics.elevation * metrics.pixelsPerMeter / Math.cos(limitedPitchRadians));
+    const cameraToSeaLevelDistance = getCameraToSeaLevelDistance(metrics);
 
     const {nearZ, farZ} = nearFarZ ?? calculateNearFarZ(metrics, cameraToSeaLevelDistance, limitedPitchRadians, offset);
 
@@ -185,6 +184,12 @@ export function createMercatorProjectedCamera(metrics: CameraMetrics, worldCoord
         pixelMatrixInverse,
         fogMatrix,
     };
+}
+
+/** The distance from the camera to sea level along its center ray, in pixels, at which the fog depth is 0. */
+export function getCameraToSeaLevelDistance(metrics: CameraMetrics): number {
+    const limitedPitchRadians = degreesToRadians(Math.min(metrics.pitch, maxMercatorHorizonAngle));
+    return Math.max(metrics.cameraToCenterDistance / 2, metrics.cameraToCenterDistance + metrics.elevation * metrics.pixelsPerMeter / Math.cos(limitedPitchRadians));
 }
 
 /** The depth range the mercator projection draws a camera with, from the lowest point it may show to its horizon. */

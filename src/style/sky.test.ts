@@ -104,3 +104,15 @@ describe('Sky runtime error logging', () => {
         expect(warn.mock.calls[0][0]).toBe('sky.sky-color: Could not parse color from value \'null\' Falling back to rgba(136,198,252,1).');
     });
 });
+
+describe('Sky.hasFog', () => {
+    test('returns false when no fog property is set', () => {
+        expect(new Sky({'sky-color': '#88C6FC'}, {}).hasFog()).toBe(false);
+    });
+
+    test('returns true when a fog property is set', () => {
+        expect(new Sky({'fog-color': '#ffffff'}, {}).hasFog()).toBe(true);
+        expect(new Sky({'fog-ground-blend': 0.5}, {}).hasFog()).toBe(true);
+        expect(new Sky({'horizon-fog-blend': 0.5}, {}).hasFog()).toBe(true);
+    });
+});

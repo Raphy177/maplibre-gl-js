@@ -1,0 +1,47 @@
+{
+  "version": 8,
+  "metadata": {
+    "test": {
+      "height": 128,
+      "width": 256,
+      "maxPitch": 85
+    }
+  },
+  "center": [0, 0],
+  "zoom": 15,
+  "pitch": 83,
+  "sources": {
+    "maplibre": {
+      "type": "vector",
+      "maxzoom": 14,
+      "tiles": ["local://tiles/14-8802-5374.mvt"]
+    }
+  },
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#ccaa83"
+      }
+    },
+    {
+      "id": "buildings",
+      "type": "fill-extrusion",
+      "source": "maplibre",
+      "source-layer": "building",
+      "paint": {
+        "fill-extrusion-height": 40,
+        "fill-extrusion-color": "#555555"
+      }
+    }
+  ],
+  "sky": {
+    "sky-color": "#199EF3",
+    "horizon-color": "#ffffff",
+    "sky-horizon-blend": 0.5,
+    "fog-color": "#ff00ff",
+    "fog-ground-blend": 0,
+    "horizon-fog-blend": 0.8
+  }
+}

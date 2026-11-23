@@ -4620,6 +4620,7 @@ export class Map extends Evented<MapEventType> {
             pixelRatio: this._clampedPixelRatio,
             light: this.style.light?.getEvaluated(),
             sky: this.style.sky?.getEvaluated(),
+            hasFog: this.style.sky?.hasFog(),
         });
 
         this.fire(new MapLibreEvent('render'));
