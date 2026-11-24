@@ -8,6 +8,7 @@ import {
 } from '../program/fill_extrusion_program.ts';
 import {updatePatternPositionsInProgram} from '../../render/update_pattern_positions_in_program.ts';
 import {translatePosition} from '../../util/util.ts';
+import {SHADOW_DEFINES, setShadowTile} from './draw_shadow.ts';
 
 import type {FrameRenderContext} from '../../render/frame_render_context.ts';
 import type {TileManager} from '../../tile/tile_manager.ts';
@@ -70,7 +71,8 @@ function drawExtrusionTiles(
 
         const terrainData = frameRenderContext.getTerrainDataForTile(coord);
         const programConfiguration = bucket.programConfigurations.get(layer.id);
-        const program = frameRenderContext.useProgram(image ? 'fillExtrusionPattern' : 'fillExtrusion', programConfiguration);
+        const program = frameRenderContext.useProgram(image ? 'fillExtrusionPattern' : 'fillExtrusion', programConfiguration, false, frameRenderContext.shadowMap ? SHADOW_DEFINES : undefined);
+        if (frameRenderContext.shadowMap) setShadowTile(frameRenderContext, coord);
 
         if (image) {
             context.activeTexture.set(gl.TEXTURE0);

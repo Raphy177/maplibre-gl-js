@@ -25,6 +25,7 @@ import type {Projection, TileMeshUsage} from '../geo/projection/projection.ts';
 import type {CrossTileID, VariableOffset} from '../symbol/placement.ts';
 import type {ProjectedCamera} from '../camera/projected_camera.ts';
 import type {WorldCoordinateHelper} from '../geo/world_types.ts';
+import type {ShadowMap} from '../webgl/draw/draw_shadow.ts';
 
 export type RenderPass = 'offscreen' | 'opaque' | 'translucent';
 
@@ -102,6 +103,8 @@ export class FrameRenderContext {
     isRenderingToTexture: boolean = false;
     /** Whether a layer composite has already sampled the shared scratch FBO in this frame. */
     layerCompositeSampled: boolean = false;
+    /** The shadow map fill-extrusions cast into this frame, null when nothing casts a shadow. */
+    shadowMap: ShadowMap | null = null;
     readonly projectedCamera: ProjectedCamera;
     /** The world mapping the camera was projected with. */
     readonly worldCoordinateHelper: WorldCoordinateHelper;

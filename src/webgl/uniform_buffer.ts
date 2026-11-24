@@ -4,6 +4,7 @@ export const UBO_BINDINGS = {
     ProjectionUBO: 0,
     TerrainUBO: 1,
     FrameUBO: 2,
+    ShadowUBO: 3,
 };
 
 export function applyUBOBindings(gl: WebGL2RenderingContext, program: WebGLProgram): void {
