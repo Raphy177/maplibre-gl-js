@@ -1,4 +1,4 @@
-uniform vec3 u_lightcolor;
+uniform highp vec3 u_lightcolor;
 uniform lowp vec3 u_lightpos;
 uniform lowp vec3 u_lightpos_globe;
 uniform lowp float u_lightintensity;
@@ -13,8 +13,13 @@ layout(location = 1) in ivec4 a_normal_ed;
     layout(location = 2) in vec2 a_centroid;
 #endif
 
-
-out vec4 v_color;
+#ifdef SHADOWS
+    out mediump vec3 v_ambient;
+    out mediump vec3 v_direct;
+    out lowp float v_opacity;
+#else
+    out vec4 v_color;
+#endif
 
 #pragma maplibre: define highp float base
 #pragma maplibre: define highp float height
@@ -71,8 +76,6 @@ void main() {
     // Relative luminance (how dark/bright is the surface color?)
     float colorvalue = color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722;
 
-    v_color = vec4(0.0, 0.0, 0.0, 1.0);
-
     // Add slight ambient lighting so no extrusions are totally black
     vec4 ambientlight = vec4(0.03, 0.03, 0.03, 1.0);
     color += ambientlight;
@@ -106,11 +109,18 @@ void main() {
             (u_vertical_gradient * clamp((t + gradient_base) * pow(gradient_height / 150.0, 0.5), mix(0.7, 0.98, 1.0 - u_lightintensity), 1.0));
     }
 
-    vec3 lighting = (u_lightambient + direct) * gradient;
+    vec3 baseColor = color.rgb * u_lightcolor * gradient;
+    vec3 ambientColor = baseColor * u_lightambient;
+    vec3 directColor = baseColor * direct;
 
     // Assign final color based on surface + ambient light color, diffuse light directional, and light color
     // with lower bounds adjusted to hue of light
     // so that shading is tinted with the complementary (opposite) color to the light color
-    v_color.rgb += clamp(color.rgb * lighting * u_lightcolor, mix(vec3(0.0), vec3(0.3), 1.0 - u_lightcolor), vec3(1.0));
-    v_color *= opacity;
+    #ifdef SHADOWS
+        v_ambient = ambientColor;
+        v_direct = directColor;
+        v_opacity = opacity;
+    #else
+        v_color = vec4(clamp(ambientColor + directColor, mix(vec3(0.0), vec3(0.3), 1.0 - u_lightcolor), vec3(1.0)), 1.0) * opacity;
+    #endif
 }

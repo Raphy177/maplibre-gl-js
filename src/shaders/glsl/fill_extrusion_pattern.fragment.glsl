@@ -5,7 +5,15 @@ uniform sampler2D u_image;
 
 in vec2 v_pos_a;
 in vec2 v_pos_b;
-in vec4 v_lighting;
+
+#ifdef SHADOWS
+    uniform highp vec3 u_lightcolor;
+    in mediump vec3 v_ambient;
+    in mediump vec3 v_direct;
+    in lowp float v_opacity;
+#else
+    in vec4 v_lighting;
+#endif
 
 #pragma maplibre: define lowp float base
 #pragma maplibre: define lowp float height
@@ -37,8 +45,12 @@ void main() {
 
     vec4 mixedColor = mix(color1, color2, u_fade);
 
-    fragColor = mixedColor * v_lighting;
-    fragColor.rgb *= 1.0 - shadow_darkening();
+    #ifdef SHADOWS
+        vec3 lit = clamp(v_ambient + v_direct * (1.0 - shadow_darkening()), mix(vec3(0.0), vec3(0.3), 1.0 - u_lightcolor), vec3(1.0));
+        fragColor = mixedColor * vec4(lit, 1.0) * v_opacity;
+    #else
+        fragColor = mixedColor * v_lighting;
+    #endif
 
     #ifdef OVERDRAW_INSPECTOR
         fragColor = vec4(1.0);
