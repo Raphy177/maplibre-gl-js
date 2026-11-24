@@ -1,4 +1,5 @@
 import {mat4} from 'gl-matrix';
+import {Color} from '@maplibre/maplibre-gl-style-spec';
 import {DepthMode} from '../depth_mode.ts';
 import {StencilMode} from '../stencil_mode.ts';
 import {ColorMode} from '../color_mode.ts';
@@ -26,10 +27,12 @@ const MAX_CASTER_HEIGHT = 1000;
 const MAX_POLAR_ANGLE = 80;
 /** Defines that compile a program as a shadow receiver. */
 export const SHADOW_DEFINES: string[] = ['#define SHADOWS', `#define SHADOW_MAP_SIZE ${SHADOW_MAP_SIZE}.0`];
-const layout = std140Layout([{name: 'u_shadow_matrix', type: 'mat4'}, {name: 'u_shadow_intensity', type: 'float'}]);
+const layout = std140Layout([{name: 'u_shadow_matrix', type: 'mat4'}, {name: 'u_shadow_params', type: 'vec4'}]);
 const VIEWPORT: [number, number, number, number] = [0, 0, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE];
 const CLEAR_DEPTH = {depth: 1};
 const DEPTH_MODE = new DepthMode(0x0203 /* LEQUAL */, DepthMode.ReadWrite, [0, 1]);
+/** `ZERO, SRC_COLOR`: multiplies the ground by the remaining light factor. */
+const GROUND_SHADOW_COLOR_MODE = new ColorMode([0x0000, 0x0300], Color.transparent, [true, true, true, true]);
 const NO_TRANSLATE: [number, number] = [0, 0];
 const GROUND_UNIFORMS: UniformValues<ShadowGroundUniformsType> = {'u_shadow_map': SHADOW_MAP_TEXTURE_UNIT};
 const quad = new Float64Array(16);
@@ -104,9 +107,10 @@ export function destroyShadowMap(painter: Painter): void {
 export function drawShadowMap(painter: Painter, style: Style, coordsBySource: Record<string, OverscaledTileID[]>, frameRenderContext: FrameRenderContext): ShadowMap | null {
     const {context, projectedCamera, data, terrain} = frameRenderContext;
     const gl = context.gl;
-    const intensity = data.light?.['shadow-intensity'] ?? 0;
+    const light = data.light;
+    const intensity = light?.['shadow-intensity'] ?? 0;
     if (!intensity) destroyShadowMap(painter);
-    if (!intensity || terrain || data.isRenderingGlobe || data.projectionShaderVariant?.name !== MercatorShaderVariantKey || painter.shadowsUnsupported) return null;
+    if (!intensity || !light.intensity || light.position[2] >= 90 || terrain || data.isRenderingGlobe || data.projectionShaderVariant?.name !== MercatorShaderVariantKey || painter.shadowsUnsupported) return null;
     let shadowMap: ShadowMap | null = null;
     for (const layerId of style._order) {
         const layer = style._layers[layerId];
@@ -118,7 +122,15 @@ export function drawShadowMap(painter: Painter, style: Style, coordsBySource: Re
             painter.shadowsUnsupported = !shadowMap;
             if (!shadowMap) return null;
             updateLightMatrix(shadowMap, frameRenderContext);
-            shadowMap.uniformBuffer.pending[layout.offsets.u_shadow_intensity] = intensity;
+            const direct = light.intensity * Math.max(0, Math.cos(light.position[2] * Math.PI / 180));
+            const ambientColor = light['ambient-color'];
+            const ambientIntensity = light['ambient-intensity'];
+            const offset = layout.offsets.u_shadow_params;
+            const pending = shadowMap.uniformBuffer.pending;
+            pending[offset] = direct / Math.max(ambientColor.r * ambientIntensity + direct, 1e-4);
+            pending[offset + 1] = direct / Math.max(ambientColor.g * ambientIntensity + direct, 1e-4);
+            pending[offset + 2] = direct / Math.max(ambientColor.b * ambientIntensity + direct, 1e-4);
+            pending[offset + 3] = intensity;
             context.bindFramebuffer.set(shadowMap.framebuffer);
             context.viewport.set(VIEWPORT);
             context.clear(CLEAR_DEPTH);
@@ -143,13 +155,13 @@ export function drawShadowMap(painter: Painter, style: Style, coordsBySource: Re
     return shadowMap;
 }
 
-/** Darkens the ground drawn so far where it lies in shadow, with one quad over the area the shadow map covers. */
+/** Darkens the ground drawn so far where it lies in shadow, removing only the directional light's share. */
 export function drawGroundShadow(painter: Painter, frameRenderContext: FrameRenderContext): void {
     const {context, shadowMap} = frameRenderContext;
     shadowMap.uniformBuffer.pending.set(shadowMap.groundShadowMatrix, layout.offsets.u_shadow_matrix);
     bindShadowMap(frameRenderContext);
     frameRenderContext.useProgram('shadowGround', null, false, SHADOW_DEFINES).draw(context, context.gl.TRIANGLES, DepthMode.disabled,
-        StencilMode.disabled, ColorMode.alphaBlended, CullFaceMode.disabled, GROUND_UNIFORMS, null, shadowMap.ground,
+        StencilMode.disabled, GROUND_SHADOW_COLOR_MODE, CullFaceMode.disabled, GROUND_UNIFORMS, null, shadowMap.ground,
         'shadowGround', painter.viewportBuffer, painter.quadTriangleIndexBuffer, painter.viewportSegments);
 }
 

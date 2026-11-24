@@ -1,3 +1,7 @@
+#if defined(SHADOWS) || defined(WALL_AMBIENT_OCCLUSION)
+    #define LIGHT_PER_FRAGMENT
+#endif
+
 uniform vec2 u_texsize;
 uniform float u_fade;
 
@@ -5,11 +9,18 @@ uniform sampler2D u_image;
 
 in vec2 v_pos_a;
 in vec2 v_pos_b;
-in vec4 v_lighting;
+
+#ifdef LIGHT_PER_FRAGMENT
+    uniform highp vec3 u_lightcolor;
+    in mediump vec3 v_ambient;
+    in mediump vec3 v_direct;
+    in lowp float v_opacity;
+#else
+    in vec4 v_lighting;
+#endif
 
 #ifdef WALL_AMBIENT_OCCLUSION
     uniform lowp float u_ao_wall_intensity;
-    in vec3 v_lighting_without_ambient;
     in mediump float v_ao_wall_height;
 #endif
 
@@ -43,19 +54,21 @@ void main() {
 
     vec4 mixedColor = mix(color1, color2, u_fade);
 
-    vec4 lighting = v_lighting;
+    #ifdef LIGHT_PER_FRAGMENT
+        float ao = 1.0;
+        #ifdef WALL_AMBIENT_OCCLUSION
+            // (1 - s)^1.5 approximates the share of ambient light the ground blocks within the radius.
+            if (v_ao_wall_height < 1.0) {
+                float oneMinusS = 1.0 - max(v_ao_wall_height, 0.0);
+                ao -= u_ao_wall_intensity * oneMinusS * sqrt(oneMinusS);
+            }
+        #endif
 
-    #ifdef WALL_AMBIENT_OCCLUSION
-        // (1 - s)^1.5 approximates the share of ambient light the ground blocks within the radius.
-        if (v_ao_wall_height < 1.0) {
-            float oneMinusS = 1.0 - max(v_ao_wall_height, 0.0);
-            float occlusion = u_ao_wall_intensity * oneMinusS * sqrt(oneMinusS);
-            lighting.rgb = mix(v_lighting.rgb, v_lighting_without_ambient, occlusion);
-        }
+        vec3 lit = clamp(v_ambient * ao + v_direct * (1.0 - shadow_darkening()), mix(vec3(0.0), vec3(0.3), 1.0 - u_lightcolor), vec3(1.0));
+        fragColor = mixedColor * vec4(lit, 1.0) * v_opacity;
+    #else
+        fragColor = mixedColor * v_lighting;
     #endif
-
-    fragColor = mixedColor * lighting;
-    fragColor.rgb *= 1.0 - shadow_darkening();
 
     #ifdef FOG
         fragColor = apply_fog(fragColor);
