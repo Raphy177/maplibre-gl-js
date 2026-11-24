@@ -5,7 +5,7 @@ uniform vec3 u_scale;
 uniform float u_vertical_gradient;
 uniform vec2 u_fill_translate;
 
-uniform vec3 u_lightcolor;
+uniform highp vec3 u_lightcolor;
 uniform lowp vec3 u_lightpos;
 uniform lowp vec3 u_lightpos_globe;
 uniform lowp float u_lightintensity;
@@ -24,7 +24,14 @@ layout(location = 1) in ivec4 a_normal_ed;
 
 out vec2 v_pos_a;
 out vec2 v_pos_b;
-out vec4 v_lighting;
+
+#ifdef SHADOWS
+    out mediump vec3 v_ambient;
+    out mediump vec3 v_direct;
+    out lowp float v_opacity;
+#else
+    out vec4 v_lighting;
+#endif
 
 #pragma maplibre: define lowp float base
 #pragma maplibre: define lowp float height
@@ -105,7 +112,6 @@ void main() {
     v_pos_a = get_pattern_pos(u_pixel_coord_upper, u_pixel_coord_lower, fromScale * display_size_a, tileRatio, pos);
     v_pos_b = get_pattern_pos(u_pixel_coord_upper, u_pixel_coord_lower, toScale * display_size_b, tileRatio, pos);
 
-    v_lighting = vec4(0.0, 0.0, 0.0, 1.0);
     float directional = clamp(dot(normal / 16383.0, u_lightpos), 0.0, 1.0);
     set_shadow_pos(vec4(posInTile, elevation, 1.0), normal.xy / 16383.0, directional);
     float peak = max(0.5 + u_lightintensity, 1.0);
@@ -118,7 +124,15 @@ void main() {
             (u_vertical_gradient * clamp((t + gradient_base) * sqrt(gradient_height * (1.0 / 150.0)), mix(0.7, 0.98, 1.0 - u_lightintensity), 1.0));
     }
 
-    vec3 lighting = (u_lightambient + direct) * gradient;
-    v_lighting.rgb += clamp(lighting * u_lightcolor, mix(vec3(0.0), vec3(0.3), 1.0 - u_lightcolor), vec3(1.0));
-    v_lighting *= opacity;
+    vec3 baseLighting = u_lightcolor * gradient;
+    vec3 ambientLighting = baseLighting * u_lightambient;
+    vec3 directLighting = baseLighting * direct;
+
+    #ifdef SHADOWS
+        v_ambient = ambientLighting;
+        v_direct = directLighting;
+        v_opacity = opacity;
+    #else
+        v_lighting = vec4(clamp(ambientLighting + directLighting, mix(vec3(0.0), vec3(0.3), 1.0 - u_lightcolor), vec3(1.0)), 1.0) * opacity;
+    #endif
 }
