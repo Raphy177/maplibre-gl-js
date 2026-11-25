@@ -1,9 +1,9 @@
 uniform vec4 u_sky_color;
 uniform vec4 u_horizon_color;
 
-uniform vec2 u_horizon;
-uniform vec2 u_horizon_normal;
-uniform float u_sky_horizon_blend;
+uniform highp vec2 u_horizon;
+uniform highp vec2 u_horizon_normal;
+uniform highp float u_sky_horizon_blend;
 uniform float u_sky_blend;
 uniform vec3 u_globe_position;
 uniform float u_globe_radius;
@@ -14,9 +14,8 @@ in vec3 v_view_direction;
 const float ATMOSPHERE_HEIGHT_TO_GLOBE_RADIUS = 100000.0 / 6371000.0;
 
 void main() {
-    float x = gl_FragCoord.x;
-    float y = gl_FragCoord.y;
-    float blend = (y - u_horizon.y) * u_horizon_normal.y + (x - u_horizon.x) * u_horizon_normal.x;
+    highp float blend = dot(gl_FragCoord.xy - u_horizon, u_horizon_normal);
+    if (u_sky_blend == 0.0 && blend <= 0.0) discard;
     float opacity = 1.0;
     if (u_sky_blend > 0.0) {
         vec3 ray = normalize(v_view_direction);
@@ -31,9 +30,11 @@ void main() {
         float through_atmosphere = 1.0 - smoothstep(0.0, atmosphere_height, lowest_altitude);
         opacity = inside_atmosphere * through_atmosphere * (1.0 - u_atmosphere_blend);
     }
+    fragColor = vec4(0.0);
     if (blend > 0.0) {
         if (blend < u_sky_horizon_blend) {
-            fragColor = mix(u_sky_color, u_horizon_color, pow(1.0 - blend / u_sky_horizon_blend, 2.0));
+            float t = 1.0 - blend / u_sky_horizon_blend;
+            fragColor = mix(u_sky_color, u_horizon_color, t * t);
         } else {
             fragColor = u_sky_color;
         }

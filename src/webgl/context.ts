@@ -72,6 +72,8 @@ export class Context {
     freeProjectionUniformBuffers: UniformBuffer[];
     terrainUniformBuffer: UniformBuffer;
     frameUniformBuffer: UniformBuffer;
+    /** Created by the first frame with fog. */
+    fogUniformBuffer: UniformBuffer | null;
 
     extTextureFilterAnisotropic: EXT_texture_filter_anisotropic | null;
     extTextureFilterAnisotropicMax?: GLfloat;
@@ -127,6 +129,7 @@ export class Context {
         this.freeProjectionUniformBuffers = [];
         this.terrainUniformBuffer = createTerrainUniformBuffer(this);
         this.frameUniformBuffer = createFrameUniformBuffer(this);
+        this.fogUniformBuffer = null;
     }
 
     /** Destroys the uniform buffers the context created. */
@@ -134,6 +137,7 @@ export class Context {
         destroyProjectionUniformBuffers(this);
         this.terrainUniformBuffer.destroy();
         this.frameUniformBuffer.destroy();
+        this.fogUniformBuffer?.destroy();
     }
 
     setDefault(): void {

@@ -14,21 +14,38 @@ import type {LightPropsPossiblyEvaluated} from '../../style/light_properties.g.t
 import type {Mesh} from '../../render/mesh.ts';
 import type {ProjectedCamera} from '../../camera/projected_camera.ts';
 
+/** The defines of the shaders that blend in the fog of `FogUBO`. */
+export const FOG_DEFINES: string[] = ['#define FOG'];
+
 export function drawSky(mesh: Mesh, frameRenderContext: FrameRenderContext): void {
     const context = frameRenderContext.context;
     const gl = context.gl;
     const {sky, pixelRatio} = frameRenderContext.data;
 
     const skyUniforms = skyUniformValues(sky, frameRenderContext.projectedCamera, pixelRatio);
+    if (skyUniforms.u_sky_min_y >= 1) return;
 
-    const depthMode = new DepthMode(gl.LEQUAL, DepthMode.ReadWrite, [0, 1]);
-    const stencilMode = StencilMode.disabled;
+    const depthMode = skyUniforms.u_sky_blend === 0 ?
+        new DepthMode(gl.ALWAYS, DepthMode.ReadWrite, frameRenderContext.depthRangeFor3D) :
+        DepthMode.disabled;
     const colorMode = frameRenderContext.colorModeForRenderPass();
     const program = frameRenderContext.useProgram('sky');
 
-    program.draw(context, gl.TRIANGLES, depthMode, stencilMode, colorMode,
+    program.draw(context, gl.TRIANGLES, depthMode, StencilMode.disabled, colorMode,
         CullFaceMode.disabled, skyUniforms, null, undefined, 'sky', mesh.vertexBuffer,
         mesh.indexBuffer, mesh.segments);
+}
+
+/**
+ * Blends the fog over the ground of a flat map, using `gl.LESS` at `depthRangeFor3D[1]` to skip
+ * both the flat-map sky and any 3D geometry drawn in front of it.
+ */
+export function drawGroundFog(mesh: Mesh, frameRenderContext: FrameRenderContext): void {
+    const context = frameRenderContext.context;
+    const depthMode = new DepthMode(context.gl.LESS, DepthMode.ReadOnly, frameRenderContext.depthRangeFor3D);
+    const program = frameRenderContext.useProgram('fogGround', null, true, FOG_DEFINES);
+    program.draw(context, context.gl.TRIANGLES, depthMode, StencilMode.disabled, ColorMode.alphaBlended,
+        CullFaceMode.disabled, null, null, null, 'fogGround', mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
 }
 
 function getSunPos(light: Readonly<LightPropsPossiblyEvaluated>, projectedCamera: ProjectedCamera): vec3 {

@@ -11,7 +11,7 @@ import {drawBackground} from './draw_background.ts';
 import {drawDebug, drawDebugPadding, selectDebugSource} from './draw_debug.ts';
 import {drawCustom} from './draw_custom.ts';
 import {drawDepth} from './draw_terrain.ts';
-import {drawSky, drawAtmosphere} from './draw_sky.ts';
+import {drawSky, drawAtmosphere, drawGroundFog} from './draw_sky.ts';
 
 export {drawSymbols, drawCircles, drawHeatmap, drawLine, drawFill, drawFillExtrusion,
     drawHillshade, drawColorRelief, drawRaster, drawBackground,
@@ -35,6 +35,7 @@ export type DrawFunctions = {
     debug: typeof drawDebug;
     debugPadding: typeof drawDebugPadding;
     terrainDepth: typeof drawDepth;
+    groundFog: typeof drawGroundFog;
 };
 
 export const webglDrawFunctions: DrawFunctions = {
@@ -54,4 +55,5 @@ export const webglDrawFunctions: DrawFunctions = {
     debug: drawDebug,
     debugPadding: drawDebugPadding,
     terrainDepth: drawDepth,
+    groundFog: drawGroundFog,
 };

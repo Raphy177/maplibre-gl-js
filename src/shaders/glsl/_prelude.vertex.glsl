@@ -191,3 +191,12 @@ layout(std140) uniform FrameUBO {
     highp vec2 u_pixel_extrude_scale;
     highp float u_pitch;
 };
+
+#ifdef FOG
+layout(std140) uniform FogUBO {
+    highp vec4 u_fog_color;
+    highp vec4 u_horizon_color;
+    highp vec4 u_fog_params;
+    highp vec4 u_fog_ground;
+};
+#endif
