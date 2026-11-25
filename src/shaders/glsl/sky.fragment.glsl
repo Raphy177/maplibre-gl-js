@@ -31,9 +31,11 @@ void main() {
         float through_atmosphere = 1.0 - smoothstep(0.0, atmosphere_height, lowest_altitude);
         opacity = inside_atmosphere * through_atmosphere * (1.0 - u_atmosphere_blend);
     }
+    fragColor = vec4(0.0);
     if (blend > 0.0) {
         if (blend < u_sky_horizon_blend) {
-            fragColor = mix(u_sky_color, u_horizon_color, pow(1.0 - blend / u_sky_horizon_blend, 2.0));
+            float t = 1.0 - blend / u_sky_horizon_blend;
+            fragColor = mix(u_sky_color, u_horizon_color, t * t);
         } else {
             fragColor = u_sky_color;
         }

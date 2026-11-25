@@ -23,22 +23,22 @@ export function drawSky(mesh: Mesh, frameRenderContext: FrameRenderContext): voi
     const {sky, pixelRatio} = frameRenderContext.data;
 
     const skyUniforms = skyUniformValues(sky, frameRenderContext.projectedCamera, pixelRatio);
+    if (skyUniforms.u_sky_min_y >= 1) return;
 
-    const depthMode = new DepthMode(gl.LEQUAL, DepthMode.ReadWrite, [0, 1]);
-    const stencilMode = StencilMode.disabled;
     const colorMode = frameRenderContext.colorModeForRenderPass();
     const program = frameRenderContext.useProgram('sky');
 
-    program.draw(context, gl.TRIANGLES, depthMode, stencilMode, colorMode,
+    program.draw(context, gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, colorMode,
         CullFaceMode.disabled, skyUniforms, null, undefined, 'sky', mesh.vertexBuffer,
         mesh.indexBuffer, mesh.segments);
 }
 
 /** Blends the fog over the ground of a flat map, which has no mesh of its own to draw it with. */
-export function drawGroundFog(mesh: Mesh, frameRenderContext: FrameRenderContext): void {
+export function drawGroundFog(mesh: Mesh, frameRenderContext: FrameRenderContext, depthTest: boolean = false): void {
     const context = frameRenderContext.context;
+    const depthMode = depthTest ? new DepthMode(context.gl.LESS, DepthMode.ReadOnly, frameRenderContext.depthRangeFor3D) : DepthMode.disabled;
     const program = frameRenderContext.useProgram('fogGround', null, true, FOG_DEFINES);
-    program.draw(context, context.gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, ColorMode.alphaBlended,
+    program.draw(context, context.gl.TRIANGLES, depthMode, StencilMode.disabled, ColorMode.alphaBlended,
         CullFaceMode.disabled, null, null, null, 'fogGround', mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
 }
 
