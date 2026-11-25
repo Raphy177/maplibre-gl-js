@@ -8,9 +8,11 @@ import {
 import {mat3, vec3} from 'gl-matrix';
 import {sphericalToCartesian} from '../../util/util.ts';
 import {getCameraMath} from '../../camera/camera_math_factory.ts';
+import {EXTENT} from '../../data/extent.ts';
+import {latFromMercatorY, mercatorZfromAltitude} from '../../geo/mercator_coordinate.ts';
 
 import type {Context} from '../../webgl/context.ts';
-import type {OverscaledTileID} from '../../tile/tile_id.ts';
+import type {CanonicalTileID, OverscaledTileID} from '../../tile/tile_id.ts';
 import type {UniformValues, UniformLocations} from '../uniform_binding.ts';
 import type {CrossfadeParameters} from '../../style/evaluation_parameters.ts';
 import type {Tile} from '../../tile/tile.ts';
@@ -49,6 +51,15 @@ export type FillExtrusionPatternUniformsType = {
     'u_fade': Uniform1f;
 };
 
+export type FillExtrusionGroundOcclusionUniformsType = {
+    'u_ao_ground_intensity': Uniform1f;
+    'u_ao_ground_radius': Uniform1f;
+    'u_ao_ground_tuck': Uniform1f;
+    'u_tile_units_per_meter': Uniform1f;
+    'u_fill_translate': Uniform2f;
+    'u_inv_size': Uniform2f;
+};
+
 const fillExtrusionUniforms = (context: Context, locations: UniformLocations): FillExtrusionUniformsType => ({
     'u_lightpos': new Uniform3f(context, locations.u_lightpos),
     'u_lightpos_globe': new Uniform3f(context, locations.u_lightpos_globe),
@@ -79,6 +90,15 @@ const fillExtrusionPatternUniforms = (context: Context, locations: UniformLocati
     'u_pixel_coord_lower': new Uniform2f(context, locations.u_pixel_coord_lower),
     'u_scale': new Uniform3f(context, locations.u_scale),
     'u_fade': new Uniform1f(context, locations.u_fade)
+});
+
+const fillExtrusionGroundOcclusionUniforms = (context: Context, locations: UniformLocations): FillExtrusionGroundOcclusionUniformsType => ({
+    'u_ao_ground_intensity': new Uniform1f(context, locations.u_ao_ground_intensity),
+    'u_ao_ground_radius': new Uniform1f(context, locations.u_ao_ground_radius),
+    'u_ao_ground_tuck': new Uniform1f(context, locations.u_ao_ground_tuck),
+    'u_tile_units_per_meter': new Uniform1f(context, locations.u_tile_units_per_meter),
+    'u_fill_translate': new Uniform2f(context, locations.u_fill_translate),
+    'u_inv_size': new Uniform2f(context, locations.u_inv_size),
 });
 
 const fillExtrusionUniformValues = (
@@ -136,9 +156,46 @@ const fillExtrusionPatternUniformValues = (
     };
 };
 
+const ZERO_VEC2: [number, number] = [0, 0];
+
+const fillExtrusionGroundOcclusionUniformValues = (
+    intensity: number,
+    radius: number,
+    tuck: number,
+    translate: [number, number],
+    canonical: CanonicalTileID
+): UniformValues<FillExtrusionGroundOcclusionUniformsType> => {
+    const tileCount = Math.pow(2, canonical.z);
+    const latitude = latFromMercatorY((canonical.y + 0.5) / tileCount);
+
+    return {
+        'u_ao_ground_intensity': intensity,
+        'u_ao_ground_radius': radius,
+        'u_ao_ground_tuck': tuck,
+        'u_tile_units_per_meter': mercatorZfromAltitude(1, latitude) * EXTENT * tileCount,
+        'u_fill_translate': translate,
+        'u_inv_size': ZERO_VEC2,
+    };
+};
+
+const fillExtrusionGroundOcclusionCompositeUniformValues = (
+    invWidth: number,
+    invHeight: number
+): UniformValues<FillExtrusionGroundOcclusionUniformsType> => ({
+    'u_ao_ground_intensity': 0,
+    'u_ao_ground_radius': 0,
+    'u_ao_ground_tuck': 0,
+    'u_tile_units_per_meter': 0,
+    'u_fill_translate': ZERO_VEC2,
+    'u_inv_size': [invWidth, invHeight],
+});
+
 export {
     fillExtrusionUniforms,
     fillExtrusionPatternUniforms,
+    fillExtrusionGroundOcclusionUniforms,
     fillExtrusionUniformValues,
-    fillExtrusionPatternUniformValues
+    fillExtrusionPatternUniformValues,
+    fillExtrusionGroundOcclusionUniformValues,
+    fillExtrusionGroundOcclusionCompositeUniformValues
 };
