@@ -60,15 +60,14 @@ lowp vec4 apply_fog(lowp vec4 color) {
 uniform highp sampler2DShadow u_shadow_map;
 in highp vec3 v_shadow_pos;
 in lowp float v_shadow_weight;
-// Four bilinear depth comparisons half a texel apart filter 3x3 texels (GPU Gems, chapter 11), fading out at the border.
+// Hardware bilinear depth comparison filters a 2x2 texel footprint, fading out at the border.
 lowp float shadow_darkening() {
+    if (v_shadow_weight <= 0.0) return 0.0;
     highp vec3 p = v_shadow_pos;
-    highp vec2 offset = vec2(0.5 / SHADOW_MAP_SIZE);
-    lowp float lit = 0.25 * (
-        texture(u_shadow_map, vec3(p.xy - offset, p.z)) + texture(u_shadow_map, vec3(p.xy + offset, p.z)) +
-        texture(u_shadow_map, vec3(p.x - offset.x, p.y + offset.y, p.z)) + texture(u_shadow_map, vec3(p.x + offset.x, p.y - offset.y, p.z)));
     highp vec2 border = abs(p.xy - 0.5);
-    return v_shadow_weight * (1.0 - lit) * (1.0 - smoothstep(0.45, 0.5, max(border.x, border.y)));
+    lowp float fade = v_shadow_weight * (1.0 - smoothstep(0.45, 0.5, max(border.x, border.y)));
+    if (fade <= 0.0 || p.z > 1.0) return 0.0;
+    return fade * (1.0 - texture(u_shadow_map, p));
 }
 #else
 #define shadow_darkening() 0.0

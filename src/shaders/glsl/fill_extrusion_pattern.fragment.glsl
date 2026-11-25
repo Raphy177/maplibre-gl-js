@@ -1,4 +1,4 @@
-#if defined(SHADOWS) || defined(WALL_AMBIENT_OCCLUSION)
+#if defined(WALL_AMBIENT_OCCLUSION) || defined(SHADOWS)
     #define LIGHT_PER_FRAGMENT
 #endif
 
@@ -64,7 +64,7 @@ void main() {
             }
         #endif
 
-        vec3 lit = clamp(v_ambient * ao + v_direct * (1.0 - shadow_darkening()), mix(vec3(0.0), vec3(0.3), 1.0 - u_lightcolor), vec3(1.0));
+        vec3 lit = clamp(v_ambient * ao + v_direct * (1.0 - shadow_darkening()), 0.3 * (1.0 - u_lightcolor), vec3(1.0));
         fragColor = mixedColor * vec4(lit, 1.0) * v_opacity;
     #else
         fragColor = mixedColor * v_lighting;

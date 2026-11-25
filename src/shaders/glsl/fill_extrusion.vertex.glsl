@@ -1,4 +1,4 @@
-#if defined(SHADOWS) || defined(WALL_AMBIENT_OCCLUSION)
+#if defined(WALL_AMBIENT_OCCLUSION) || defined(SHADOWS)
     #define LIGHT_PER_FRAGMENT
 #endif
 
@@ -43,7 +43,9 @@ layout(location = 1) in ivec4 a_normal_ed;
 void main() {
     #pragma maplibre: initialize highp float base
     #pragma maplibre: initialize highp float height
-    #pragma maplibre: initialize highp vec4 color
+    #ifndef SHADOW_CASTER
+        #pragma maplibre: initialize highp vec4 color
+    #endif
     #pragma maplibre: initialize highp float opacity
 
     opacity = clamp(opacity, 0.0, 1.0);
@@ -52,6 +54,18 @@ void main() {
         return;
     }
 
+    float t = float(a_normal_ed.x & 1);
+    vec2 posInTile = a_pos + u_fill_translate;
+
+#ifdef SHADOW_CASTER
+    float b = max(0.0, base);
+    float h = max(0.0, height);
+    if (h <= b) {
+        gl_Position = vec4(-2.0, -2.0, -2.0, 1.0);
+        return;
+    }
+    gl_Position = u_projection_matrix * vec4(posInTile, t > 0.0 ? h : b, 1.0);
+#else
     // Walls store ground occlusion data in z; only roofs have xy = (1, 0).
     vec3 normal = vec3(a_normal_ed.xy, a_normal_ed.x == 1 && a_normal_ed.y == 0 ? 16384 : 0);
 
@@ -76,9 +90,7 @@ void main() {
     base = max(0.0, base) + base_terrain3d_offset;
     height = max(0.0, height) + height_terrain3d_offset;
 
-    float t = float(a_normal_ed.x & 1);
     float elevation = t > 0.0 ? height : base;
-    vec2 posInTile = a_pos + u_fill_translate;
 
     #ifdef GLOBE
         vec3 spherePos = projectToSphere(posInTile, a_pos);
@@ -143,4 +155,5 @@ void main() {
         #endif
         v_ao_wall_height = normal.z == 0.0 ? (elevation - ground) / u_ao_wall_radius : 1.0;
     #endif
+#endif
 }

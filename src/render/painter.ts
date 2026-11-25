@@ -365,15 +365,15 @@ export class Painter {
             }
         }
         let groundFogPending = frameRenderContext.fogActive && !frameRenderContext.terrain;
-        const deferGroundFog = lastFillExtrusionLayer !== -1 && !hasPatternedExtrusion && !data.showOverdrawInspector;
+        const deferGroundPasses = lastFillExtrusionLayer !== -1 && !hasPatternedExtrusion && !data.showOverdrawInspector;
 
         for (frameRenderContext.currentLayer = 0; frameRenderContext.currentLayer < layerIds.length; frameRenderContext.currentLayer++) {
             const layer = style._layers[layerIds[frameRenderContext.currentLayer]];
-            if (frameRenderContext.shadowMap && frameRenderContext.currentLayer === frameRenderContext.opaquePassCutoff) {
-                this.drawFunctions.groundShadow(this, frameRenderContext);
+            if (frameRenderContext.shadowMap && !deferGroundPasses && frameRenderContext.currentLayer === frameRenderContext.opaquePassCutoff) {
+                this.drawFunctions.groundShadow(this, frameRenderContext, false);
             }
             if (layer.isHidden(projectedCamera.zoom)) continue;
-            if (groundFogPending && !deferGroundFog && isFillExtrusionStyleLayer(layer)) {
+            if (groundFogPending && !deferGroundPasses && isFillExtrusionStyleLayer(layer)) {
                 groundFogPending = false;
                 this.drawFunctions.groundFog(this.skyMesh, frameRenderContext, false);
             }
@@ -399,7 +399,10 @@ export class Painter {
             this.renderLayer(this, tileManager, layer, coords, frameRenderContext);
 
             if (frameRenderContext.currentLayer === lastFillExtrusionLayer) {
-                if (deferGroundFog && groundFogPending) {
+                if (deferGroundPasses && frameRenderContext.shadowMap) {
+                    this.drawFunctions.groundShadow(this, frameRenderContext, true);
+                }
+                if (deferGroundPasses && groundFogPending) {
                     groundFogPending = false;
                     this.drawFunctions.groundFog(this.skyMesh, frameRenderContext, true);
                 }
