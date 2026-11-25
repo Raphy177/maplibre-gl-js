@@ -2,6 +2,7 @@ import {mat3} from 'gl-matrix';
 import {UBO_BINDINGS, UniformBuffer, std140Layout} from './uniform_buffer.ts';
 import {calculateFogBlendOpacity} from '../style/sky.ts';
 import {getCameraToSeaLevelDistance} from '../camera/mercator_camera_math.ts';
+import {getMercatorHorizon} from '../geo/projection/mercator_utils.ts';
 
 import type {Color} from '@maplibre/maplibre-gl-style-spec';
 import type {Context} from './context.ts';
@@ -42,7 +43,7 @@ export function updateFogUniformBuffer(context: Context, projectedCamera: Projec
     if (!mat3.invert(clipToGround, groundToClip)) return false;
 
     const near = getCameraToSeaLevelDistance(projectedCamera);
-    const far = projectedCamera.farZ;
+    const far = getFlatMapHorizonFar(projectedCamera, hasTerrain, near);
     const depthAtInfinity = far / (far - near);
     const depthPerInverseW = far * near / (far - near);
 
@@ -59,6 +60,20 @@ export function updateFogUniformBuffer(context: Context, projectedCamera: Projec
     f32[offsets.u_fog_ground + 2] = depthAtInfinity - depthPerInverseW * clipToGround[8];
     buffer.upload();
     return true;
+}
+
+function getFlatMapHorizonFar(projectedCamera: ProjectedCamera, hasTerrain: boolean, near: number): number {
+    const far = projectedCamera.farZ;
+    if (hasTerrain || projectedCamera.width <= 0 || projectedCamera.height <= 0) return far;
+
+    const mercatorHorizon = getMercatorHorizon(projectedCamera);
+    const horizonNdcX = (-2 * mercatorHorizon * Math.sin(projectedCamera.rollInRadians)) / projectedCamera.width;
+    const horizonNdcY = (2 * mercatorHorizon * Math.cos(projectedCamera.rollInRadians)) / projectedCamera.height;
+    const invWHorizon = clipToGround[2] * horizonNdcX + clipToGround[5] * horizonNdcY + clipToGround[8];
+    if (invWHorizon <= 0) return far;
+
+    const horizonFar = 1 / invWHorizon;
+    return horizonFar > near && horizonFar < far ? horizonFar : far;
 }
 
 function writeColor(f32: Float32Array, offset: number, color: Color, opacity: number): void {

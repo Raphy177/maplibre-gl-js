@@ -318,10 +318,10 @@ export class Painter {
         this.context.clear({color: data.showOverdrawInspector ? Color.black : Color.transparent, depth: 1});
         frameRenderContext.clearStencil();
 
+        frameRenderContext.setDepthRangeFor3D(style._order.length);
+
         // draw sky first to not overwrite symbols
         if (data.sky) this.drawFunctions.sky(this.skyMesh, frameRenderContext);
-
-        frameRenderContext.setDepthRangeFor3D(style._order.length);
 
         // Opaque pass ===============================================
         // Draw opaque layers top-to-bottom first.
@@ -363,7 +363,7 @@ export class Painter {
             if (layer.isHidden(projectedCamera.zoom)) continue;
             if (groundFogPending && !deferGroundFog && isFillExtrusionStyleLayer(layer)) {
                 groundFogPending = false;
-                this.drawFunctions.groundFog(this.skyMesh, frameRenderContext, false);
+                this.drawFunctions.groundFog(this.skyMesh, frameRenderContext);
             }
             const tileManager = tileManagers[layer.source];
 
@@ -388,7 +388,7 @@ export class Painter {
 
             if (frameRenderContext.currentLayer === lastFillExtrusionLayer && deferGroundFog && groundFogPending) {
                 groundFogPending = false;
-                this.drawFunctions.groundFog(this.skyMesh, frameRenderContext, true);
+                this.drawFunctions.groundFog(this.skyMesh, frameRenderContext);
             }
         }
 
