@@ -16,6 +16,7 @@ export type SkyUniformsType = {
     'u_horizon_normal': Uniform2f;
     'u_sky_horizon_blend': Uniform1f;
     'u_sky_blend': Uniform1f;
+    'u_sky_min_y': Uniform1f;
     'u_inv_proj_matrix': UniformMatrix4f;
     'u_globe_position': Uniform3f;
     'u_globe_radius': Uniform1f;
@@ -29,13 +30,14 @@ const skyUniforms = (context: Context, locations: UniformLocations): SkyUniforms
     'u_horizon_normal': new Uniform2f(context, locations.u_horizon_normal),
     'u_sky_horizon_blend': new Uniform1f(context, locations.u_sky_horizon_blend),
     'u_sky_blend': new Uniform1f(context, locations.u_sky_blend),
+    'u_sky_min_y': new Uniform1f(context, locations.u_sky_min_y),
     'u_inv_proj_matrix': new UniformMatrix4f(context, locations.u_inv_proj_matrix),
     'u_globe_position': new Uniform3f(context, locations.u_globe_position),
     'u_globe_radius': new Uniform1f(context, locations.u_globe_radius),
     'u_atmosphere_blend': new Uniform1f(context, locations.u_atmosphere_blend),
 });
 
-const skyUniformValues = (sky: Readonly<SkyPropsPossiblyEvaluated>, projectedCamera: ProjectedCamera, pixelRatio: number): UniformValues<SkyUniformsType> => {
+const skyUniformValues = (sky: Readonly<SkyPropsPossiblyEvaluated>, projectedCamera: ProjectedCamera, pixelRatio: number): UniformValues<SkyUniformsType> & {'u_sky_min_y': number} => {
     const cosRoll = Math.cos(projectedCamera.rollInRadians);
     const sinRoll = Math.sin(projectedCamera.rollInRadians);
     const mercatorHorizon  = getMercatorHorizon(projectedCamera);
@@ -43,14 +45,23 @@ const skyUniformValues = (sky: Readonly<SkyPropsPossiblyEvaluated>, projectedCam
     const skyBlend = projectionData.projectionTransition;
     const globePosition = getGlobeCenterInViewSpace(projectedCamera);
     const globeRadius = getGlobeRadiusPixels(projectedCamera.worldSize, projectedCamera.center.lat);
+    const horizonX = (projectedCamera.width / 2 - mercatorHorizon * sinRoll) * pixelRatio;
+    const horizonY = (projectedCamera.height / 2 + mercatorHorizon * cosRoll) * pixelRatio;
+    let skyMinY = -1;
+    if (skyBlend === 0 && cosRoll > 1e-4 && projectedCamera.height > 0) {
+        const slope = -sinRoll / cosRoll;
+        const y0 = horizonY + horizonX * slope;
+        const y1 = horizonY - (projectedCamera.width * pixelRatio - horizonX) * slope;
+        skyMinY = Math.max(-1, (2 * Math.floor(Math.min(y0, y1))) / (projectedCamera.height * pixelRatio) - 1);
+    }
     return {
         'u_sky_color': sky['sky-color'],
         'u_horizon_color': sky['horizon-color'],
-        'u_horizon': [(projectedCamera.width / 2 - mercatorHorizon * sinRoll)  * pixelRatio,
-            (projectedCamera.height / 2 + mercatorHorizon * cosRoll) * pixelRatio],
+        'u_horizon': [horizonX, horizonY],
         'u_horizon_normal': [-sinRoll, cosRoll],
         'u_sky_horizon_blend': (sky['sky-horizon-blend'] * projectedCamera.height / 2) * pixelRatio,
         'u_sky_blend': skyBlend,
+        'u_sky_min_y': skyMinY,
         'u_inv_proj_matrix': projectedCamera.inverseProjectionMatrix,
         'u_globe_position': globePosition,
         'u_globe_radius': globeRadius,
