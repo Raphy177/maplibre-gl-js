@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Lumen — Ambient Light, Shadows &amp; Ambient Occlusion Demo</title>
+    <meta property="og:description" content="Interactive showcase of configurable ambient light, shadow mapping, ambient occlusion, sky, and fog using the Lumen style across day, golden hour, and night." />
+    <meta property="og:category" content="3D Models &amp; Buildings" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="../../dist/maplibre-gl.css" />
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+            font-size: 12.5px;
+            line-height: 1.4;
+            --surface: rgba(252, 249, 243, 0.84);
+            --surface-solid: #faf6ee;
+            --surface-hover: rgba(0, 0, 0, 0.05);
+            --border: rgba(74, 58, 38, 0.14);
+            --text: #2a241d;
+            --muted: #766858;
+            --accent: #3d6fb6;
+            --accent-text: #ffffff;
+            --track: rgba(42, 36, 29, 0.14);
+            --shadow: 0 12px 32px rgba(24, 18, 10, 0.18), 0 2px 6px rgba(24, 18, 10, 0.08);
+        }
+        body.preset-golden-hour {
+            --surface: rgba(48, 33, 36, 0.82);
+            --surface-solid: #362427;
+            --surface-hover: rgba(255, 224, 190, 0.08);
+            --border: rgba(255, 196, 140, 0.22);
+            --text: #fff1e2;
+            --muted: #d3b298;
+            --accent: #e58649;
+            --accent-text: #1c100a;
+            --track: rgba(255, 224, 190, 0.22);
+            --shadow: 0 14px 36px rgba(15, 7, 10, 0.42);
+        }
+        body.preset-night {
+            --surface: rgba(17, 20, 29, 0.84);
+            --surface-solid: #151924;
+            --surface-hover: rgba(180, 200, 255, 0.08);
+            --border: rgba(155, 175, 225, 0.18);
+            --text: #ebeff8;
+            --muted: #98a4be;
+            --accent: #7da2e8;
+            --accent-text: #0b101b;
+            --track: rgba(180, 200, 255, 0.2);
+            --shadow: 0 14px 36px rgba(0, 0, 0, 0.55);
+        }
+
+        #panel {
+            position: absolute;
+            top: 14px;
+            left: 14px;
+            z-index: 2;
+            width: 300px;
+            max-height: calc(100% - 28px);
+            display: flex;
+            flex-direction: column;
+            color: var(--text);
+            background: var(--surface);
+            backdrop-filter: blur(16px) saturate(1.3);
+            -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            box-shadow: var(--shadow);
+            transition: background 0.45s ease, color 0.45s ease, border-color 0.45s ease;
+            overflow: hidden;
+        }
+        #panel.collapsed {
+            width: auto;
+        }
+        #panel.collapsed .panel-body {
+            display: none;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+        #panel.collapsed .panel-header {
+            border-bottom: none;
+        }
+        .brand {
+            display: flex;
+            align-items: baseline;
+            gap: 7px;
+        }
+        .brand h1 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 650;
+            letter-spacing: -0.01em;
+        }
+        .brand span {
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 500;
+        }
+        .icon-btn {
+            appearance: none;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--muted);
+            border-radius: 7px;
+            padding: 3px 8px;
+            font: inherit;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+        .icon-btn:hover {
+            background: var(--surface-hover);
+            color: var(--text);
+        }
+
+        .panel-body {
+            padding: 12px 14px 14px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+
+        .preset-bar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+            padding: 4px;
+            border-radius: 10px;
+            background: var(--surface-hover);
+            border: 1px solid var(--border);
+        }
+        .preset-btn {
+            appearance: none;
+            border: none;
+            background: transparent;
+            color: var(--text);
+            padding: 7px 4px;
+            border-radius: 7px;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 550;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            transition: background 0.2s, color 0.2s, transform 0.1s;
+        }
+        .preset-btn:hover { background: var(--surface-hover); }
+        .preset-btn.active {
+            background: var(--accent);
+            color: var(--accent-text);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+        }
+
+        .quick-toggles {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin-top: 10px;
+        }
+        .chip {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 6px 6px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            user-select: none;
+            font-size: 11.5px;
+            font-weight: 500;
+            white-space: nowrap;
+            transition: background 0.15s, border-color 0.15s;
+        }
+        .chip:hover { background: var(--surface-hover); }
+        .chip input { margin: 0; accent-color: var(--accent); cursor: pointer; }
+
+        .hint {
+            margin: 6px 2px 0;
+            font-size: 11px;
+            color: var(--muted);
+            display: none;
+        }
+        body.terrain-on .hint { display: block; }
+
+        details {
+            margin-top: 10px;
+            border-top: 1px solid var(--border);
+            padding-top: 9px;
+        }
+        summary {
+            cursor: pointer;
+            list-style: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            font-weight: 650;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--muted);
+            user-select: none;
+        }
+        summary::-webkit-details-marker { display: none; }
+        summary::after {
+            content: "+";
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1;
+        }
+        details[open] > summary::after { content: "−"; }
+
+        .control {
+            margin-top: 8px;
+        }
+        .control-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3px;
+        }
+        .control-head label {
+            color: var(--text);
+            font-weight: 450;
+        }
+        .control-head output {
+            font-variant-numeric: tabular-nums;
+            font-size: 11.5px;
+            color: var(--muted);
+        }
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 4px;
+            border-radius: 999px;
+            background: var(--track);
+            outline: none;
+            cursor: pointer;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 2px solid var(--surface-solid);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 13px;
+            height: 13px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 2px solid var(--surface-solid);
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        }
+        input[type="range"]:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .row label { color: var(--text); font-weight: 450; }
+        .check-row {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            margin-top: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+        .check-row input { margin: 0; accent-color: var(--accent); cursor: pointer; }
+
+        input[type="color"] {
+            width: 44px;
+            height: 22px;
+            padding: 1px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: transparent;
+            cursor: pointer;
+        }
+        select {
+            font: inherit;
+            color: var(--text);
+            background: var(--surface-solid);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 3px 8px;
+            cursor: pointer;
+        }
+
+        .panel-footer {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid var(--border);
+        }
+        .footer-btn {
+            flex: 1;
+            appearance: none;
+            border: 1px solid var(--border);
+            background: var(--surface-hover);
+            color: var(--text);
+            padding: 7px 8px;
+            border-radius: 8px;
+            font: inherit;
+            font-size: 12px;
+            font-weight: 550;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .footer-btn:hover { background: var(--border); }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+<aside id="panel" aria-label="Lighting controls">
+    <div class="panel-header">
+        <div class="brand">
+            <h1>Lumen 3D</h1>
+            <span>Regensburg</span>
+        </div>
+        <button type="button" class="icon-btn" id="toggle-panel" title="Toggle panel (H)">Hide</button>
+    </div>
+
+    <div class="panel-body">
+        <div class="preset-bar" id="presets" role="group" aria-label="Light presets">
+            <button type="button" class="preset-btn active" data-preset="day">&#9728;&#65039; Day</button>
+            <button type="button" class="preset-btn" data-preset="golden-hour">&#127751; Golden</button>
+            <button type="button" class="preset-btn" data-preset="night">&#127769; Night</button>
+        </div>
+
+        <div class="quick-toggles">
+            <label class="chip"><input type="checkbox" id="shadow-on" checked> Shadows</label>
+            <label class="chip"><input type="checkbox" id="ao-on" checked> AO</label>
+            <label class="chip"><input type="checkbox" id="terrain-on"> Terrain</label>
+        </div>
+        <p class="hint">Shadow maps are currently Mercator-only without 3D terrain.</p>
+
+        <details open>
+            <summary>Ambient Light</summary>
+            <label class="check-row">
+                <input type="checkbox" id="ambient-auto">
+                <span>Auto ambient (1 &minus; intensity)</span>
+            </label>
+            <div class="control">
+                <div class="control-head"><label for="ambient-intensity">Ambient intensity</label><output></output></div>
+                <input type="range" id="ambient-intensity" min="0" max="1" step="0.01">
+            </div>
+            <div class="row">
+                <label for="ambient-color">Ambient color</label>
+                <input type="color" id="ambient-color">
+            </div>
+        </details>
+
+        <details open>
+            <summary>Directional Light &amp; Shadows</summary>
+            <div class="control">
+                <div class="control-head"><label for="azimuth">Sun azimuth (&deg;)</label><output></output></div>
+                <input type="range" id="azimuth" min="0" max="360" step="any">
+            </div>
+            <div class="control">
+                <div class="control-head"><label for="altitude">Sun altitude (&deg;)</label><output></output></div>
+                <input type="range" id="altitude" min="1" max="90" step="1">
+            </div>
+            <div class="control">
+                <div class="control-head"><label for="light-intensity">Light intensity</label><output></output></div>
+                <input type="range" id="light-intensity" min="0" max="1" step="0.01">
+            </div>
+            <div class="control">
+                <div class="control-head"><label for="shadow-intensity">Shadow intensity</label><output></output></div>
+                <input type="range" id="shadow-intensity" min="0" max="1" step="0.01">
+            </div>
+            <div class="row">
+                <label for="light-color">Light color</label>
+                <input type="color" id="light-color">
+            </div>
+            <div class="row">
+                <label for="anchor">Anchor</label>
+                <select id="anchor">
+                    <option value="map">map</option>
+                    <option value="viewport">viewport</option>
+                </select>
+            </div>
+        </details>
+
+        <details open>
+            <summary>Ambient Occlusion</summary>
+            <div class="control">
+                <div class="control-head"><label for="ao-wall-intensity">Wall intensity</label><output></output></div>
+                <input type="range" id="ao-wall-intensity" min="0" max="1" step="0.01" data-ao="fill-extrusion-ambient-occlusion-wall-intensity">
+            </div>
+            <div class="control">
+                <div class="control-head"><label for="ao-wall-radius">Wall radius (m)</label><output></output></div>
+                <input type="range" id="ao-wall-radius" min="0" max="12" step="0.5" data-ao="fill-extrusion-ambient-occlusion-wall-radius">
+            </div>
+            <div class="control">
+                <div class="control-head"><label for="ao-ground-intensity">Ground intensity</label><output></output></div>
+                <input type="range" id="ao-ground-intensity" min="0" max="1" step="0.01" data-ao="fill-extrusion-ambient-occlusion-ground-intensity">
+            </div>
+            <div class="control">
+                <div class="control-head"><label for="ao-ground-radius">Ground radius (m)</label><output></output></div>
+                <input type="range" id="ao-ground-radius" min="0" max="12" step="0.1" data-ao="fill-extrusion-ambient-occlusion-ground-radius">
+            </div>
+        </details>
+
+        <details open>
+            <summary>Buildings</summary>
+            <div class="control">
+                <div class="control-head"><label for="corner-distance">Rounded corners (m)</label><output></output></div>
+                <input type="range" id="corner-distance" min="0" max="8" step="0.5">
+            </div>
+            <div class="control">
+                <div class="control-head"><label for="building-opacity">Building opacity</label><output></output></div>
+                <input type="range" id="building-opacity" min="0" max="1" step="0.05">
+            </div>
+            <label class="check-row">
+                <input type="checkbox" id="vertical-gradient">
+                <span>Vertical wall gradient</span>
+            </label>
+        </details>
+
+        <details>
+            <summary>Sky &amp; Fog</summary>
+            <div class="row">
+                <label for="sky-color">Sky color</label>
+                <input type="color" id="sky-color">
+            </div>
+            <div class="row">
+                <label for="horizon-color">Horizon color</label>
+                <input type="color" id="horizon-color">
+            </div>
+            <div class="row">
+                <label for="fog-color">Fog color</label>
+                <input type="color" id="fog-color">
+            </div>
+            <div class="control">
+                <div class="control-head"><label for="sky-horizon-blend">Sky&ndash;horizon blend</label><output></output></div>
+                <input type="range" id="sky-horizon-blend" min="0" max="1" step="0.02">
+            </div>
+            <div class="control">
+                <div class="control-head"><label for="horizon-fog-blend">Horizon&ndash;fog blend</label><output></output></div>
+                <input type="range" id="horizon-fog-blend" min="0" max="1" step="0.02">
+            </div>
+            <div class="control">
+                <div class="control-head"><label for="fog-ground-blend">Fog&ndash;ground blend</label><output></output></div>
+                <input type="range" id="fog-ground-blend" min="0" max="1" step="0.02">
+            </div>
+        </details>
+
+        <div class="panel-footer">
+            <button type="button" class="footer-btn" id="reset-preset">Reset preset</button>
+            <button type="button" class="footer-btn" id="reset-camera">Reset view</button>
+        </div>
+    </div>
+</aside>
+
+<script type="module">
+    import * as maplibregl from '../../dist/maplibre-gl-dev.mjs';
+
+    const params = new URLSearchParams(location.search);
+    const styleUrl = params.get('style') ?? './lumen-style/style.json';
+    const LOCAL_SERVER = 'http://localhost:8080/api';
+    const OPENFREEMAP_TILES = 'https://tiles.openfreemap.org/planet';
+    const OPENFREEMAP_FONTS = 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf';
+    const BUILDINGS = 'building-3d';
+    const TERRAIN_SOURCE = 'terrain-dem';
+
+    const $ = id => document.getElementById(id);
+    const aoSliders = [...document.querySelectorAll('input[data-ao]')];
+    const allRangeInputs = [...document.querySelectorAll('input[type="range"]')];
+
+    async function localServerAvailable() {
+        try {
+            const response = await fetch(`${LOCAL_SERVER}/data/osm/tiles.json`, {signal: AbortSignal.timeout(1200)});
+            return response.ok;
+        } catch {
+            return false;
+        }
+    }
+
+    async function loadStyle(url) {
+        const [style, useLocal] = await Promise.all([
+            fetch(url).then(r => r.json()),
+            localServerAvailable(),
+        ]);
+        for (const source of Object.values(style.sources)) {
+            if (source.url?.startsWith('mbtiles://')) {
+                source.url = useLocal ? `${LOCAL_SERVER}/data/osm/tiles.json` : OPENFREEMAP_TILES;
+            }
+        }
+        if (style.sprite?.includes('{styleJsonFolder}')) {
+            style.sprite = new URL('sprite', new URL(url, location.href)).href;
+        }
+        if (!/^https?:/.test(style.glyphs)) {
+            style.glyphs = useLocal ? `${LOCAL_SERVER}/fonts/{fontstack}/{range}.pbf` : OPENFREEMAP_FONTS;
+        }
+        style.transition = {duration: 0, delay: 0};
+        return style;
+    }
+
+    function valueFor(value, preset, zoom = initialCamera.zoom) {
+        if (!Array.isArray(value)) return value;
+        if (value[0] === 'literal') return value[1];
+        if (value[0] === 'interpolate' && Array.isArray(value[2]) && value[2][0] === 'zoom') {
+            if (zoom <= value[3]) return valueFor(value[4], preset, zoom);
+            for (let i = 3; i < value.length - 2; i += 2) {
+                const z0 = value[i];
+                const z1 = value[i + 2];
+                if (zoom <= z1) {
+                    const v0 = valueFor(value[i + 1], preset, zoom);
+                    const v1 = valueFor(value[i + 3], preset, zoom);
+                    return v0 + ((zoom - z0) / (z1 - z0)) * (v1 - v0);
+                }
+            }
+            return valueFor(value[value.length - 1], preset, zoom);
+        }
+        if (value[0] !== 'match') return value;
+        for (let i = 2; i < value.length - 1; i += 2) {
+            if ([value[i]].flat().includes(preset)) return valueFor(value[i + 1], preset, zoom);
+        }
+        return valueFor(value[value.length - 1], preset, zoom);
+    }
+
+    let preset = params.get('preset') ?? 'day';
+    const style = await loadStyle(styleUrl);
+    style.state.lightPreset.default = preset;
+
+    const styleLight = structuredClone(style.light);
+    const styleSky = structuredClone(style.sky);
+    const buildingLayer = style.layers.find(l => l.id === BUILDINGS);
+    const styleBuildingPaint = structuredClone(buildingLayer.paint);
+    const styleCornerDistance = buildingLayer.layout?.['fill-extrusion-rounded-corner-distance'] ?? 0;
+
+    const initialCamera = {
+        center: style.center ?? [12.0975, 49.0192],
+        zoom: style.zoom ?? 16.4,
+        pitch: 75,
+        bearing: style.bearing ?? -32,
+    };
+
+    const map = new maplibregl.Map({
+        container: 'map',
+        style,
+        ...initialCamera,
+        maxPitch: 82,
+        hash: true,
+        canvasContextAttributes: {antialias: false},
+    });
+    map.addControl(new maplibregl.NavigationControl({visualizePitch: true}), 'top-right');
+    window.map = map;
+
+    map.on('load', () => {
+        if (!map.getSource(TERRAIN_SOURCE)) {
+            map.addSource(TERRAIN_SOURCE, {
+                type: 'raster-dem',
+                url: 'https://tiles.mapterhorn.com/tilejson.json',
+            });
+        }
+    });
+
+    function syncOutputs() {
+        for (const input of allRangeInputs) {
+            const output = input.closest('.control')?.querySelector('output');
+            if (!output) continue;
+            if (input.id === 'ambient-intensity' && $('ambient-auto').checked) {
+                const fallback = Math.max(0, 1 - Number($('light-intensity').value));
+                output.textContent = `${fallback.toFixed(2)} (auto)`;
+            } else {
+                output.textContent = String(Number(Number(input.value).toFixed(2)));
+            }
+        }
+    }
+
+    const aoOverrides = new Set();
+
+    function syncAoSlidersToZoom() {
+        const zoom = map.getZoom();
+        for (const slider of aoSliders) {
+            const prop = slider.dataset.ao;
+            if (aoOverrides.has(prop)) continue;
+            slider.value = valueFor(styleBuildingPaint[prop], preset, zoom) ?? 0;
+        }
+    }
+
+    function syncControlsToPreset() {
+        const zoom = map.getZoom();
+        const [, azimuth, polar] = valueFor(styleLight.position, preset, zoom);
+        $('azimuth').value = azimuth;
+        $('altitude').value = Math.max(1, 90 - polar);
+        $('light-intensity').value = valueFor(styleLight.intensity, preset, zoom);
+        $('anchor').value = styleLight.anchor ?? 'map';
+        $('light-color').value = valueFor(styleLight.color, preset, zoom);
+
+        const ambientIntensity = valueFor(styleLight['ambient-intensity'], preset, zoom);
+        $('ambient-auto').checked = ambientIntensity === undefined;
+        $('ambient-intensity').disabled = $('ambient-auto').checked;
+        $('ambient-intensity').value = ambientIntensity ?? (1 - Number($('light-intensity').value));
+        $('ambient-color').value = valueFor(styleLight['ambient-color'], preset, zoom) ?? '#ffffff';
+
+        const shadowIntensity = valueFor(styleLight['shadow-intensity'], preset, zoom) ?? 0;
+        $('shadow-on').checked = shadowIntensity > 0;
+        $('shadow-intensity').value = shadowIntensity;
+
+        $('corner-distance').value = styleCornerDistance;
+        $('building-opacity').value = valueFor(styleBuildingPaint['fill-extrusion-opacity'], preset, zoom) ?? 1;
+        $('vertical-gradient').checked = valueFor(styleBuildingPaint['fill-extrusion-vertical-gradient'], preset, zoom) ?? false;
+        $('ao-on').checked = true;
+        syncAoSlidersToZoom();
+
+        $('sky-color').value = valueFor(styleSky['sky-color'], preset, zoom);
+        $('horizon-color').value = valueFor(styleSky['horizon-color'], preset, zoom);
+        $('fog-color').value = valueFor(styleSky['fog-color'], preset, zoom);
+        $('sky-horizon-blend').value = valueFor(styleSky['sky-horizon-blend'], preset, zoom) ?? 0.7;
+        $('horizon-fog-blend').value = valueFor(styleSky['horizon-fog-blend'], preset, zoom) ?? 0.8;
+        $('fog-ground-blend').value = valueFor(styleSky['fog-ground-blend'], preset, zoom) ?? 0.5;
+        syncOutputs();
+    }
+
+    function applyPreset(name) {
+        preset = name;
+        aoOverrides.clear();
+        document.body.classList.remove('preset-day', 'preset-golden-hour', 'preset-night');
+        document.body.classList.add(`preset-${name}`);
+        for (const btn of $('presets').children) {
+            btn.classList.toggle('active', btn.dataset.preset === name);
+        }
+        syncControlsToPreset();
+        if (!map.isStyleLoaded()) return;
+
+        map.setGlobalStateProperty('lightPreset', name);
+        map.setLight(styleLight);
+        map.setSky(styleSky);
+        map.setLayoutProperty(BUILDINGS, 'fill-extrusion-rounded-corner-distance', styleCornerDistance);
+        for (const property of ['fill-extrusion-opacity', 'fill-extrusion-vertical-gradient', ...aoSliders.map(s => s.dataset.ao)]) {
+            map.setPaintProperty(BUILDINGS, property, styleBuildingPaint[property]);
+        }
+    }
+
+    function applyLight() {
+        const autoAmbient = $('ambient-auto').checked;
+        $('ambient-intensity').disabled = autoAmbient;
+        if (autoAmbient) {
+            $('ambient-intensity').value = Math.max(0, 1 - Number($('light-intensity').value)).toFixed(2);
+        }
+        syncOutputs();
+
+        const light = {
+            anchor: $('anchor').value,
+            position: [1.15, Number($('azimuth').value), 90 - Number($('altitude').value)],
+            color: $('light-color').value,
+            intensity: Number($('light-intensity').value),
+            'ambient-color': $('ambient-color').value,
+            'shadow-intensity': $('shadow-on').checked ? Number($('shadow-intensity').value) : 0,
+        };
+        if (!autoAmbient) {
+            light['ambient-intensity'] = Number($('ambient-intensity').value);
+        } else {
+            light['ambient-intensity'] = null;
+        }
+        map.setLight(light);
+    }
+
+    function applyPaint() {
+        syncOutputs();
+        const aoOn = $('ao-on').checked;
+        for (const slider of aoSliders) {
+            const prop = slider.dataset.ao;
+            if (!aoOn && prop.endsWith('intensity')) {
+                map.setPaintProperty(BUILDINGS, prop, 0);
+            } else if (aoOverrides.has(prop)) {
+                map.setPaintProperty(BUILDINGS, prop, Number(slider.value));
+            } else {
+                map.setPaintProperty(BUILDINGS, prop, styleBuildingPaint[prop]);
+            }
+        }
+        map.setPaintProperty(BUILDINGS, 'fill-extrusion-opacity', Number($('building-opacity').value));
+        map.setPaintProperty(BUILDINGS, 'fill-extrusion-vertical-gradient', $('vertical-gradient').checked);
+    }
+
+    function applyCorners() {
+        syncOutputs();
+        map.setLayoutProperty(BUILDINGS, 'fill-extrusion-rounded-corner-distance', Number($('corner-distance').value));
+    }
+
+    function applySky() {
+        syncOutputs();
+        map.setSky({
+            'sky-color': $('sky-color').value,
+            'horizon-color': $('horizon-color').value,
+            'fog-color': $('fog-color').value,
+            'sky-horizon-blend': Number($('sky-horizon-blend').value),
+            'horizon-fog-blend': Number($('horizon-fog-blend').value),
+            'fog-ground-blend': Number($('fog-ground-blend').value),
+            'atmosphere-blend': styleSky['atmosphere-blend'],
+        });
+    }
+
+    function applyTerrain() {
+        const enabled = $('terrain-on').checked;
+        document.body.classList.toggle('terrain-on', enabled);
+        if (!map.isStyleLoaded()) return;
+        map.setTerrain(enabled ? {source: TERRAIN_SOURCE, exaggeration: 1} : null);
+    }
+
+    function togglePanel() {
+        const collapsed = $('panel').classList.toggle('collapsed');
+        $('toggle-panel').textContent = collapsed ? 'Controls' : 'Hide';
+    }
+
+    for (const btn of $('presets').children) {
+        btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+    }
+    for (const id of ['azimuth', 'altitude', 'light-intensity', 'light-color', 'anchor', 'ambient-auto', 'ambient-intensity', 'ambient-color', 'shadow-on', 'shadow-intensity']) {
+        $(id).addEventListener('input', applyLight);
+    }
+    for (const slider of aoSliders) {
+        slider.addEventListener('input', () => {
+            aoOverrides.add(slider.dataset.ao);
+            applyPaint();
+        });
+    }
+    for (const input of [$('ao-on'), $('building-opacity'), $('vertical-gradient')]) {
+        input.addEventListener('input', applyPaint);
+    }
+    map.on('zoom', () => {
+        syncAoSlidersToZoom();
+        syncOutputs();
+    });
+    $('corner-distance').addEventListener('input', applyCorners);
+    for (const id of ['sky-color', 'horizon-color', 'fog-color', 'sky-horizon-blend', 'horizon-fog-blend', 'fog-ground-blend']) {
+        $(id).addEventListener('input', applySky);
+    }
+    $('terrain-on').addEventListener('change', applyTerrain);
+    $('reset-preset').addEventListener('click', () => applyPreset(preset));
+    $('reset-camera').addEventListener('click', () => map.easeTo({...initialCamera, duration: 700}));
+    $('toggle-panel').addEventListener('click', togglePanel);
+    window.addEventListener('keydown', e => {
+        if (e.key.toLowerCase() === 'h' && !['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+            togglePanel();
+        }
+    });
+
+    applyPreset(preset);
+</script>
+</body>
+</html>
