@@ -348,11 +348,22 @@ export class Painter {
         frameRenderContext.currentPass = 'translucent';
 
         let globeDepthRendered = false;
+        let lastFillExtrusionLayer = -1;
+        let hasPatternedExtrusion = false;
+        for (let i = layerIds.length - 1; i >= 0; i--) {
+            const layer = style._layers[layerIds[i]];
+            if (!isFillExtrusionStyleLayer(layer) || layer.isHidden(projectedCamera.zoom)) continue;
+            if (lastFillExtrusionLayer === -1) lastFillExtrusionLayer = i;
+            if (layer.paint.get('fill-extrusion-pattern').constantOr(1 as any)) {
+                hasPatternedExtrusion = true;
+            }
+        }
+        const deferGroundShadow = lastFillExtrusionLayer !== -1 && !hasPatternedExtrusion && !data.showOverdrawInspector;
 
         for (frameRenderContext.currentLayer = 0; frameRenderContext.currentLayer < layerIds.length; frameRenderContext.currentLayer++) {
             const layer = style._layers[layerIds[frameRenderContext.currentLayer]];
-            if (frameRenderContext.shadowMap && frameRenderContext.currentLayer === frameRenderContext.opaquePassCutoff) {
-                this.drawFunctions.groundShadow(this, frameRenderContext);
+            if (frameRenderContext.shadowMap && !deferGroundShadow && frameRenderContext.currentLayer === frameRenderContext.opaquePassCutoff) {
+                this.drawFunctions.groundShadow(this, frameRenderContext, false);
             }
             if (layer.isHidden(projectedCamera.zoom)) continue;
             const tileManager = tileManagers[layer.source];
@@ -375,6 +386,10 @@ export class Painter {
 
             frameRenderContext.renderTileClippingMasks(layer, coordsAscending[layer.source]);
             this.renderLayer(this, tileManager, layer, coords, frameRenderContext);
+
+            if (frameRenderContext.currentLayer === lastFillExtrusionLayer && deferGroundShadow && frameRenderContext.shadowMap) {
+                this.drawFunctions.groundShadow(this, frameRenderContext, true);
+            }
         }
 
         // Render atmosphere, only for Globe projection

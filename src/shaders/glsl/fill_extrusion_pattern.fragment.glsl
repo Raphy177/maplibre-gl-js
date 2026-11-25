@@ -46,7 +46,7 @@ void main() {
     vec4 mixedColor = mix(color1, color2, u_fade);
 
     #ifdef SHADOWS
-        vec3 lit = clamp(v_ambient + v_direct * (1.0 - shadow_darkening()), mix(vec3(0.0), vec3(0.3), 1.0 - u_lightcolor), vec3(1.0));
+        vec3 lit = clamp(v_ambient + v_direct * (1.0 - shadow_darkening()), 0.3 * (1.0 - u_lightcolor), vec3(1.0));
         fragColor = mixedColor * vec4(lit, 1.0) * v_opacity;
     #else
         fragColor = mixedColor * v_lighting;

@@ -30,7 +30,9 @@ layout(location = 1) in ivec4 a_normal_ed;
 void main() {
     #pragma maplibre: initialize highp float base
     #pragma maplibre: initialize highp float height
-    #pragma maplibre: initialize highp vec4 color
+    #ifndef SHADOW_CASTER
+        #pragma maplibre: initialize highp vec4 color
+    #endif
     #pragma maplibre: initialize highp float opacity
 
     opacity = clamp(opacity, 0.0, 1.0);
@@ -39,6 +41,18 @@ void main() {
         return;
     }
 
+    float t = float(a_normal_ed.x & 1);
+    vec2 posInTile = a_pos + u_fill_translate;
+
+#ifdef SHADOW_CASTER
+    float b = max(0.0, base);
+    float h = max(0.0, height);
+    if (h <= b) {
+        gl_Position = vec4(-2.0, -2.0, -2.0, 1.0);
+        return;
+    }
+    gl_Position = u_projection_matrix * vec4(posInTile, t > 0.0 ? h : b, 1.0);
+#else
     vec3 normal = vec3(a_normal_ed.xyz);
 
     // The vertical gradient describes the structure itself, so it keeps the extrusion's own
@@ -62,9 +76,7 @@ void main() {
     base = max(0.0, base) + base_terrain3d_offset;
     height = max(0.0, height) + height_terrain3d_offset;
 
-    float t = float(a_normal_ed.x & 1);
     float elevation = t > 0.0 ? height : base;
-    vec2 posInTile = a_pos + u_fill_translate;
 
     #ifdef GLOBE
         vec3 spherePos = projectToSphere(posInTile, a_pos);
@@ -121,4 +133,5 @@ void main() {
     #else
         v_color = vec4(clamp(ambientColor + directColor, mix(vec3(0.0), vec3(0.3), 1.0 - u_lightcolor), vec3(1.0)), 1.0) * opacity;
     #endif
+#endif
 }

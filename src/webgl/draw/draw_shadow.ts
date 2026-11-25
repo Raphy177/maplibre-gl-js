@@ -27,6 +27,8 @@ const MAX_CASTER_HEIGHT = 1000;
 const MAX_POLAR_ANGLE = 80;
 /** Defines that compile a program as a shadow receiver. */
 export const SHADOW_DEFINES: string[] = ['#define SHADOWS', `#define SHADOW_MAP_SIZE ${SHADOW_MAP_SIZE}.0`];
+/** Defines that compile `fillExtrusion` as a depth-only shadow caster. */
+const SHADOW_CASTER_DEFINES: string[] = ['#define SHADOW_CASTER'];
 const layout = std140Layout([{name: 'u_shadow_matrix', type: 'mat4'}, {name: 'u_shadow_params', type: 'vec4'}]);
 const VIEWPORT: [number, number, number, number] = [0, 0, SHADOW_MAP_SIZE, SHADOW_MAP_SIZE];
 const CLEAR_DEPTH = {depth: 1};
@@ -87,7 +89,7 @@ function createShadowMap({context, projectedCamera, data}: FrameRenderContext): 
         ground: cameraMath.getProjectionData(projectedCamera, {overscaledTileID: null}),
         groundShadowMatrix: new Float32Array(16),
         caster: cameraMath.getProjectionData(projectedCamera, {overscaledTileID: null}),
-        casterUniforms: fillExtrusionUniformValues(projectedCamera, data.light, false, NO_TRANSLATE),
+        casterUniforms: fillExtrusionUniformValues(projectedCamera, data.light, false, NO_TRANSLATE, 0, 0),
         casterVaoKeys: {},
     };
 }
@@ -146,7 +148,7 @@ export function drawShadowMap(painter: Painter, style: Style, coordsBySource: Re
             const programConfiguration = bucket.programConfigurations.get(layer.id);
             setTileShadowMatrix(shadowMap.caster.mainMatrix, 0, shadowMap.lightMatrix, coord, projectedCamera.worldSize);
             shadowMap.casterUniforms.u_fill_translate = translate[0] || translate[1] ? translatePosition(projectedCamera, tile, translate, layer.paint.get('fill-extrusion-translate-anchor')) : NO_TRANSLATE;
-            frameRenderContext.useProgram('fillExtrusion', programConfiguration).draw(context, gl.TRIANGLES, DEPTH_MODE, StencilMode.disabled,
+            frameRenderContext.useProgram('fillExtrusion', programConfiguration, false, SHADOW_CASTER_DEFINES).draw(context, gl.TRIANGLES, DEPTH_MODE, StencilMode.disabled,
                 ColorMode.disabled, CullFaceMode.frontCCW, shadowMap.casterUniforms, null, shadowMap.caster, vaoKey,
                 bucket.layoutVertexBuffer, bucket.indexBuffer, bucket.segments, layer.paint, projectedCamera.zoom, programConfiguration);
         }
@@ -156,11 +158,12 @@ export function drawShadowMap(painter: Painter, style: Style, coordsBySource: Re
 }
 
 /** Darkens the ground drawn so far where it lies in shadow, removing only the directional light's share. */
-export function drawGroundShadow(painter: Painter, frameRenderContext: FrameRenderContext): void {
+export function drawGroundShadow(painter: Painter, frameRenderContext: FrameRenderContext, depthTest: boolean = false): void {
     const {context, shadowMap} = frameRenderContext;
     shadowMap.uniformBuffer.pending.set(shadowMap.groundShadowMatrix, layout.offsets.u_shadow_matrix);
     bindShadowMap(frameRenderContext);
-    frameRenderContext.useProgram('shadowGround', null, false, SHADOW_DEFINES).draw(context, context.gl.TRIANGLES, DepthMode.disabled,
+    const depthMode = depthTest ? new DepthMode(context.gl.LESS, DepthMode.ReadOnly, frameRenderContext.depthRangeFor3D) : DepthMode.disabled;
+    frameRenderContext.useProgram('shadowGround', null, false, SHADOW_DEFINES).draw(context, context.gl.TRIANGLES, depthMode,
         StencilMode.disabled, GROUND_SHADOW_COLOR_MODE, CullFaceMode.disabled, GROUND_UNIFORMS, null, shadowMap.ground,
         'shadowGround', painter.viewportBuffer, painter.quadTriangleIndexBuffer, painter.viewportSegments);
 }
