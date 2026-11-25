@@ -1,6 +1,7 @@
 import {describe, expect, test} from 'vitest';
 import {Context} from './context.ts';
 import {updateFogUniformBuffer} from './fog_uniform_buffer.ts';
+import {getMercatorHorizon} from '../geo/projection/mercator_utils.ts';
 import {Sky} from '../style/sky.ts';
 import {createNullGL} from '../util/test/null_gl.ts';
 import {createFrameRenderData, createTestCamera} from '../util/test/util.ts';
@@ -53,5 +54,17 @@ describe('updateFogUniformBuffer', () => {
         expect(groundAtCenter).toBeCloseTo(0, 5);
         expect(groundX).toBeCloseTo(0, 5);
         expect(groundY).toBeGreaterThan(0);
+    });
+
+    test('reaches fog depth 1 at the mercator horizon on a flat map even when high zoom inflates farZ', () => {
+        const context = new Context(createNullGL());
+        const camera = createTestCamera({width: 512, height: 256, zoom: 18, pitch: 85, maxPitch: 85}).projectedCamera;
+
+        updateFogUniformBuffer(context, camera, createFrameData({'fog-ground-blend': 0.5}), false);
+
+        const [groundX, groundY, groundAtCenter] = context.fogUniformBuffer.pending.subarray(12, 15);
+        const horizonNdcY = (2 * getMercatorHorizon(camera)) / camera.height;
+        expect(groundX).toBeCloseTo(0, 5);
+        expect(groundY * horizonNdcY + groundAtCenter).toBeCloseTo(1, 5);
     });
 });

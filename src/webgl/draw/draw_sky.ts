@@ -25,18 +25,24 @@ export function drawSky(mesh: Mesh, frameRenderContext: FrameRenderContext): voi
     const skyUniforms = skyUniformValues(sky, frameRenderContext.projectedCamera, pixelRatio);
     if (skyUniforms.u_sky_min_y >= 1) return;
 
+    const depthMode = skyUniforms.u_sky_blend === 0 ?
+        new DepthMode(gl.ALWAYS, DepthMode.ReadWrite, frameRenderContext.depthRangeFor3D) :
+        DepthMode.disabled;
     const colorMode = frameRenderContext.colorModeForRenderPass();
     const program = frameRenderContext.useProgram('sky');
 
-    program.draw(context, gl.TRIANGLES, DepthMode.disabled, StencilMode.disabled, colorMode,
+    program.draw(context, gl.TRIANGLES, depthMode, StencilMode.disabled, colorMode,
         CullFaceMode.disabled, skyUniforms, null, undefined, 'sky', mesh.vertexBuffer,
         mesh.indexBuffer, mesh.segments);
 }
 
-/** Blends the fog over the ground of a flat map, which has no mesh of its own to draw it with. */
-export function drawGroundFog(mesh: Mesh, frameRenderContext: FrameRenderContext, depthTest: boolean = false): void {
+/**
+ * Blends the fog over the ground of a flat map, using `gl.LESS` at `depthRangeFor3D[1]` to skip
+ * both the flat-map sky and any 3D geometry drawn in front of it.
+ */
+export function drawGroundFog(mesh: Mesh, frameRenderContext: FrameRenderContext): void {
     const context = frameRenderContext.context;
-    const depthMode = depthTest ? new DepthMode(context.gl.LESS, DepthMode.ReadOnly, frameRenderContext.depthRangeFor3D) : DepthMode.disabled;
+    const depthMode = new DepthMode(context.gl.LESS, DepthMode.ReadOnly, frameRenderContext.depthRangeFor3D);
     const program = frameRenderContext.useProgram('fogGround', null, true, FOG_DEFINES);
     program.draw(context, context.gl.TRIANGLES, depthMode, StencilMode.disabled, ColorMode.alphaBlended,
         CullFaceMode.disabled, null, null, null, 'fogGround', mesh.vertexBuffer, mesh.indexBuffer, mesh.segments);
