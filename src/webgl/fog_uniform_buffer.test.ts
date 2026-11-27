@@ -67,4 +67,14 @@ describe('updateFogUniformBuffer', () => {
         expect(groundX).toBeCloseTo(0, 5);
         expect(groundY * horizonNdcY + groundAtCenter).toBeCloseTo(1, 5);
     });
+
+    test('writes fog-falloff into the fourth component of u_fog_ground', () => {
+        const context = new Context(createNullGL());
+
+        updateFogUniformBuffer(context, createCamera(80), createFrameData({'fog-ground-blend': 0.5}), false);
+        expect(context.fogUniformBuffer.pending[15]).toBe(2);
+
+        updateFogUniformBuffer(context, createCamera(80), createFrameData({'fog-ground-blend': 0.5, 'fog-falloff': 0.5}), false);
+        expect(context.fogUniformBuffer.pending[15]).toBe(0.5);
+    });
 });

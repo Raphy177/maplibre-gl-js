@@ -113,6 +113,7 @@ describe('Sky.hasFog', () => {
     test('returns true when a fog property is set', () => {
         expect(new Sky({'fog-color': '#ffffff'}, {}).hasFog()).toBe(true);
         expect(new Sky({'fog-ground-blend': 0.5}, {}).hasFog()).toBe(true);
+        expect(new Sky({'fog-falloff': 1}, {}).hasFog()).toBe(true);
         expect(new Sky({'horizon-fog-blend': 0.5}, {}).hasFog()).toBe(true);
     });
 });

@@ -48,7 +48,7 @@ layout(std140) uniform FogUBO {
 lowp vec4 fog_color(highp float depth) {
     lowp float horizon = smoothstep(0.0, 1.0, max((depth - u_fog_params.y) / max(1.0 - u_fog_params.y, 1e-4), 0.0));
     lowp float t = clamp((depth - u_fog_params.x) / (1.0 - u_fog_params.x), 0.0, 1.0);
-    return mix(u_fog_color, u_horizon_color, horizon) * t * t;
+    return mix(u_fog_color, u_horizon_color, horizon) * (t > 0.0 ? pow(t, u_fog_ground.w) : 0.0);
 }
 lowp vec4 apply_fog(lowp vec4 color) {
     lowp vec4 fog = fog_color(u_fog_params.z - u_fog_params.w * gl_FragCoord.w);
