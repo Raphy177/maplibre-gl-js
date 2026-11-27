@@ -24,6 +24,7 @@ export type TerrainUniformsType = {
     'u_fog_matrix': UniformMatrix4f;
     'u_fog_color': UniformColor;
     'u_fog_ground_blend': Uniform1f;
+    'u_fog_falloff': Uniform1f;
     'u_fog_ground_blend_opacity': Uniform1f;
     'u_horizon_color': UniformColor;
     'u_horizon_fog_blend': Uniform1f;
@@ -49,6 +50,7 @@ const terrainUniforms = (context: Context, locations: UniformLocations): Terrain
     'u_fog_matrix': new UniformMatrix4f(context, locations.u_fog_matrix),
     'u_fog_color': new UniformColor(context, locations.u_fog_color),
     'u_fog_ground_blend': new Uniform1f(context, locations.u_fog_ground_blend),
+    'u_fog_falloff': new Uniform1f(context, locations.u_fog_falloff),
     'u_fog_ground_blend_opacity': new Uniform1f(context, locations.u_fog_ground_blend_opacity),
     'u_horizon_color': new UniformColor(context, locations.u_horizon_color),
     'u_horizon_fog_blend': new Uniform1f(context, locations.u_horizon_fog_blend),
@@ -74,6 +76,7 @@ const terrainUniformValues = (
     'u_fog_matrix': fogMatrix,
     'u_fog_color': sky ? sky['fog-color'] : Color.white,
     'u_fog_ground_blend': sky ? sky['fog-ground-blend'] : 1,
+    'u_fog_falloff': sky ? sky['fog-falloff'] : 2,
     // Set opacity to 0 when in globe mode to disable fog
     'u_fog_ground_blend_opacity': isGlobeMode ? 0 : (sky ? calculateFogBlendOpacity(pitch) : 0),
     'u_horizon_color': sky ? sky['horizon-color'] : Color.white,

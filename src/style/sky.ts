@@ -47,6 +47,7 @@ export class Sky extends Evented {
     hasFog(): boolean {
         return this._transitionable.getValue('fog-color') !== undefined ||
             this._transitionable.getValue('fog-ground-blend') !== undefined ||
+            this._transitionable.getValue('fog-falloff') !== undefined ||
             this._transitionable.getValue('horizon-fog-blend') !== undefined;
     }
 
@@ -77,6 +78,7 @@ export class Sky extends Evented {
             'horizon-color': this.properties.get('horizon-color'),
             'fog-color': this.properties.get('fog-color'),
             'fog-ground-blend': this.properties.get('fog-ground-blend'),
+            'fog-falloff': this.properties.get('fog-falloff'),
             'horizon-fog-blend': this.properties.get('horizon-fog-blend'),
             'sky-horizon-blend': this.properties.get('sky-horizon-blend'),
             'atmosphere-blend': this.properties.get('atmosphere-blend'),

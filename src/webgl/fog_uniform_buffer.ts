@@ -11,7 +11,8 @@ import type {ProjectedCamera} from '../camera/projected_camera.ts';
 
 /**
  * The fog and horizon colors premultiplied by the fog opacity; `fog-ground-blend`, `horizon-fog-blend` and the fog
- * depth as `z - w * gl_FragCoord.w`; and the fog depth of the ground as a plane over normalized device coordinates.
+ * depth as `z - w * gl_FragCoord.w`; and the fog depth of the ground as a plane over normalized device coordinates,
+ * with `fog-falloff` in the fourth component.
  */
 const layout = std140Layout([
     {name: 'u_fog_color', type: 'vec4'},
@@ -58,6 +59,7 @@ export function updateFogUniformBuffer(context: Context, projectedCamera: Projec
     f32[offsets.u_fog_ground] = -depthPerInverseW * clipToGround[2];
     f32[offsets.u_fog_ground + 1] = -depthPerInverseW * clipToGround[5];
     f32[offsets.u_fog_ground + 2] = depthAtInfinity - depthPerInverseW * clipToGround[8];
+    f32[offsets.u_fog_ground + 3] = sky['fog-falloff'];
     buffer.upload();
     return true;
 }
